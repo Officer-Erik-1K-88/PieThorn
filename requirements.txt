@@ -1,0 +1,2 @@
+matplotlib~=3.10.1
+setuptools~=76.0.0
