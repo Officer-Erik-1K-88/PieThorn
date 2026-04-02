@@ -1,1 +1,1 @@
-setuptools
+setuptools~=82.0.1
