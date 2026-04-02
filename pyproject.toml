@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools >= 82.0.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "PyThorn"
+description = "This is a library of useful tools for Python."
+readme = "README.rst"
+authors = [
+    { name="Officer Erik 1K-88", email="oficer.erik.k@gmail.com" },
+]
+requires-python = ">= 3.12"
+keywords = ['python', 'utils', 'tools', 'utilities']
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "Programming Language :: Python :: 3",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+]
+dynamic = ["version"]
