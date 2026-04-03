@@ -1,7 +1,7 @@
 from decimal import Decimal
 from typing import List, Tuple
 
-from ._handle import _fractional_part, _exponent10, _integral_part
+from ._handle import _exponent10
 from ._cache import FOUND_EXPONENTS, FOUND_NUMBERS, PREFIXES, VOWELS, NUMBER_VALUES
 from ._prefix import NumPrefix
 from ...collections.mapping import Pair
