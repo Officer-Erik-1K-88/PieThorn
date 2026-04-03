@@ -51,20 +51,37 @@ class Pair:
 
 class Consonant:
     def __init__(self, converts: str, trails: bool, to: str=None):
+        """
+        This is the suffix of a ``NumberPrefix``.
+        It helps add depth and variety to number words.
+
+        :param converts: The consonant that this class represents
+        :param trails: Whether this consonant is appended to the end of a ``NumberPrefix`` or if it decides the consonant of the previous ``NumberPrefix``
+        :param to: The consonant that is appended to the end of a ``NumberPrefix``. Defaults to ``converts``.
+        """
         self._converts = converts
         self._trails = trails
         self._to = to
 
     @property
     def converts(self):
+        """ The consonant that this class represents """
         return self._converts
 
     @property
     def trails(self):
+        """
+        If ``True``, then this defines that the ``NumberPrefix`` gains this consonant
+        when placed before a ``NumberPrefix`` that defines the same consonant.
+        While, if ``False``, then this defines that the ``NumberPrefix`` tells the previous
+        ``NumberPrefix`` should gain this consonant if it defines the same consonant and
+        has ``trails`` set to ``True``.
+        """
         return self._trails
 
     @property
     def to(self):
+        """ The actual consonant that is appended to the end of a ``NumberPrefix`` """
         if self._to is None:
             return self._converts
         return self._to
@@ -78,6 +95,9 @@ class Consonant:
 
 
 class Consonants(AbstractSet[Consonant]):
+    """
+    A Set of ``Consonant`` classes.
+    """
     def __init__(self, consonants: Iterable[Consonant]):
         self._consonants = {}
         self._length = 0
@@ -109,6 +129,14 @@ class NumPrefix:
             convert: str,
             consonants: Iterable[Consonant],
     ):
+        """
+        Defines a part of a number word.
+
+        :param num: The number that the prefix represents
+        :param prefix: The prefix being represented
+        :param convert: The second prefix that can be used. Defaults to ``prefix``
+        :param consonants: The optional suffixes to this prefix. This is also used to check if the previous ``NumberPrefix`` should use one of its consonants.
+        """
         self._num = num
         self._prefix = prefix
         self._convert = convert
@@ -116,6 +144,7 @@ class NumPrefix:
 
     @property
     def place(self):
+        """ The digits place that this prefix is in """
         if self._num < 10:
             return "units"
         elif self._num < 100:
@@ -129,24 +158,35 @@ class NumPrefix:
 
     @property
     def prefix(self):
+        """ The actual prefix that this prefix is """
         return self._prefix
 
     @property
     def convert(self):
+        """ A second prefix that this prefix can be """
         if self._convert is None or self._convert == "":
             return self._prefix
         return self._convert
 
     @property
     def num(self):
+        """ The number this prefix represents """
         return self._num
 
     @property
     def consonants(self):
+        """
+        The consonants that this prefix uses.
+
+        Refer to ``Consonant`` class for details on how consonants work.
+        """
         return self._consonants
 
 
 class NumPrefixDict(Mapping[int, NumPrefix]):
+    """
+    Maps out a set of ``NumPrefix`` classes.
+    """
     def __init__(self, *args: NumPrefix):
         self._prefixes: Dict[int, NumPrefix] = {}
         self._places: set[str] = set()
