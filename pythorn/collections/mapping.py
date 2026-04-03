@@ -1,6 +1,15 @@
 import sys
-from typing import Mapping, MutableSequence, Optional, Sequence, MutableMapping
+from dataclasses import dataclass
+from typing import Mapping, MutableSequence, Optional, Sequence, MutableMapping, Any
 
+
+@dataclass(frozen=True)
+class Pair[KT, VT]:
+    """
+    Lightweight (key, value) holder used to keep key->value pairs.
+    """
+    key: KT
+    value: VT
 
 class Map[KT, VT](MutableMapping[KT, VT]):
     """
