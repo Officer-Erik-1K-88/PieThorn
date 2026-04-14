@@ -8,6 +8,8 @@ from pythorn.math import rand, number
 
 
 def letter_to_number(sentence: str):
+    """Randomly replace mapped letters in a sentence with lookalike digits."""
+
     mapping = {
         'o': '0', 'u': '0',
         'i': '1', 'l': '1', 'j': '1',
@@ -85,6 +87,8 @@ def letter_to_number(sentence: str):
 
 # Generate a new sample with the custom skew function
 def skew_test():
+    """Plot a large sample from the skew distribution helper."""
+
     samples = [rand.skew(is_int=True) for _ in range(1000000)]
     samples_counted = {x: 0 for x in range(0, 101)}
     for sample in samples:
@@ -102,6 +106,8 @@ def skew_test():
     plt.show()
 
 def number_test():
+    """Exercise number helpers interactively from this ad hoc test script."""
+
     #real = number.RealNum.from_any(0.01)
     #print(real)
     #larger = 0.1

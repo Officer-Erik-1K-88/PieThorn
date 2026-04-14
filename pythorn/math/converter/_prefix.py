@@ -4,6 +4,8 @@ from ._consonant import Consonants, Consonant
 
 
 class NumPrefix:
+    """Represent a named numeric prefix used in word conversion."""
+
     def __init__(
             self,
             num: int,
@@ -86,9 +88,11 @@ class NumPrefixDict(Mapping[int, NumPrefix]):
 
     @property
     def place_count(self):
+        """Return how many distinct digit places are represented."""
         return len(self._places)
 
     def has_place(self, place: str):
+        """Return whether any prefix exists for the given digit place."""
         return place in self._places
 
     def _add(self, prefix: NumPrefix):

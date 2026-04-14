@@ -18,6 +18,7 @@ class ArgumentKind(Enum):
 
     @staticmethod
     def from_param_kind(param_kind):
+        """Convert an ``inspect.Parameter.kind`` into an ``ArgumentKind``."""
         if param_kind is inspect.Parameter.POSITIONAL_OR_KEYWORD:
             return ArgumentKind.POSITIONAL_OR_KEYWORD
         elif param_kind is inspect.Parameter.POSITIONAL_ONLY:
@@ -52,22 +53,27 @@ class ArgumentKind(Enum):
 
     @property
     def positional(self) -> bool:
+        """Return whether this kind accepts positional binding."""
         return self._positional
 
     @property
     def keyword(self) -> bool:
+        """Return whether this kind accepts keyword binding."""
         return self._keyword
 
     @property
     def variadic(self) -> bool:
+        """Return whether this kind represents ``*args`` or ``**kwargs``."""
         return self._variadic
 
     @property
     def kind(self):
+        """Return the matching ``inspect`` parameter kind."""
         return self._kind
 
     @property
     def description(self):
+        """Return a human-readable description of this argument kind."""
         return self._description
 
     def __str__(self) -> str:
@@ -86,6 +92,7 @@ class Argument:
     empty = _empty
     @staticmethod
     def from_param(param: inspect.Parameter) -> Argument:
+        """Build an ``Argument`` from an ``inspect.Parameter``."""
         kwargs = {
             "key": param.name,
             "type_var": param.annotation if param.annotation is not _empty else Any,
@@ -143,6 +150,7 @@ class Argument:
 
     @property
     def kind(self) -> ArgumentKind:
+        """Return the declared argument kind."""
         return self._kind
 
     @property
@@ -321,6 +329,7 @@ class Arguments(MutableMapping[str, Any]):
 
     @property
     def parent(self):
+        """Return the parent variadic argument when one exists."""
         return self._parent
 
     @property

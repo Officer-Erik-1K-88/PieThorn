@@ -61,9 +61,11 @@ class Map[KT, VT](MutableMapping[KT, VT]):
         return len(self._keys)
 
     def has_key(self, key):
+        """Return whether ``key`` exists in the map."""
         return key in self._keys
 
     def has_value(self, key):
+        """Return whether a value equal to ``key`` exists in the map."""
         return key in self._values
 
     def __contains__(self, key: KT) -> bool:
@@ -83,15 +85,19 @@ class Map[KT, VT](MutableMapping[KT, VT]):
         return True
 
     def key_index(self, key, start=0, stop=sys.maxsize):
+        """Return the index of ``key`` in insertion order."""
         return self._keys.index(key, start, stop)
 
     def value_index(self, value, start=0, stop=sys.maxsize):
+        """Return the index of ``value`` in insertion order."""
         return self._values.index(value, start, stop)
 
     def key_at_index(self, index):
+        """Return the key stored at ``index``."""
         return self._keys[index]
 
     def value_at_index(self, index):
+        """Return the value stored at ``index``."""
         return self._values[index]
 
     def __getitem__(self, key, /):

@@ -7,6 +7,8 @@ from pythorn.logging.logger import Logger
 
 
 class CounterBehavior:
+    """Configure how counters react to resets and parent-child propagation."""
+
     def __init__(self, reset_on_reset: bool = True, remove_on_reset: bool = False, affect_child: bool = False):
         self._reset_on_reset = reset_on_reset
         self._remove_on_reset = remove_on_reset
@@ -15,31 +17,38 @@ class CounterBehavior:
 
     @property
     def reset_on_reset(self):
+        """Return whether reset should zero this counter."""
         # noinspection PyUnresolvedReferences
         return self._parent_behavior.reset_on_reset if self.affected_by_parent else self._reset_on_reset
 
     @property
     def remove_on_reset(self):
+        """Return whether reset should remove this counter from its parent."""
         # noinspection PyUnresolvedReferences
         return self._parent_behavior.remove_on_reset if self.affected_by_parent else self._remove_on_reset
 
     @property
     def affect_child(self):
+        """Return whether this behavior propagates to child counters."""
         return self._affect_child
 
     @property
     def parent(self):
+        """Return the parent behavior when this behavior is inherited."""
         return self._parent_behavior
 
     @property
     def affected_by_parent(self):
+        """Return whether a parent behavior currently overrides this one."""
         # noinspection PyUnresolvedReferences
         return self.parent is not None and self.parent.affect_child
 
     def reset_allowed(self):
+        """Return whether reset has any effect under this behavior."""
         return self.reset_on_reset or self.remove_on_reset
 
     def child_behavior(self, *args, **kwargs) -> CounterBehavior:
+        """Create a child behavior linked back to this behavior."""
         kwargs.setdefault("reset_on_reset", False)
         kwargs.setdefault("remove_on_reset", True)
         kwargs.setdefault("affect_child", False)
@@ -72,6 +81,8 @@ def _get_compare_num(value, other):
 
 
 class Counter:
+    """Track visible and hidden progress with optional logger integration."""
+
     def __init__(self, name: str, visible: int=0, hidden: int=0, only_visible=True, *, step: float=1.0, logger: Optional[Logger] = None, behavior: CounterBehavior = _DEFAULT_COUNTER_BEHAVIOR):
         if visible < 0:
             raise ValueError("The visible count must not be less than zero.")
@@ -103,34 +114,42 @@ class Counter:
 
     @property
     def name(self):
+        """Return the display name of this counter."""
         return self._name
 
     @property
     def long_name(self):
+        """Return the expanded display name of this counter."""
         return self.name
 
     @property
     def visible(self):
+        """Return the visible whole-number count."""
         return self._visible
 
     @property
     def hidden(self):
+        """Return the hidden whole-number count."""
         return self._hidden
 
     @property
     def decimal(self):
+        """Return the fractional portion of the counter value."""
         return self._decimal
 
     @property
     def total(self):
+        """Return the combined visible and hidden counts."""
         return self._visible + self._hidden
 
     @property
     def current(self) -> float:
+        """Return the current counter value exposed to callers."""
         return (self._visible if self.only_visible else self.total) + self._decimal
 
     @current.setter
     def current(self, amount: float):
+        """Set the current counter value, splitting integer and decimal parts."""
         if amount <= 0:
             self._visible = 0
             self._decimal = 0.0
@@ -374,12 +393,14 @@ class Counter:
         self.float_add(to_add, hidden)
 
     def reset(self):
+        """Reset the counter back to zero when its behavior allows it."""
         if self.behavior.reset_on_reset:
             self._visible = 0
             self._hidden = 0
             self._decimal = 0.0
 
     def check(self):
+        """Hook for subclasses to react after the counter changes."""
         pass
 
     def __str__(self):
@@ -396,6 +417,7 @@ class Counter:
         return self.current > 0
 
     def compare(self, other):
+        """Compare this counter numerically with another value."""
         current = _get_compare_num(self, other)
         num_to_check = _get_compare_num(other, self)
 
@@ -425,6 +447,8 @@ class Counter:
 
 
 class Percent(Counter):
+    """Model percentage-style progress, optionally linked to child counters."""
+
     def __init__(
             self,
             name: str,
@@ -460,10 +484,12 @@ class Percent(Counter):
 
     @property
     def parent(self):
+        """Return the parent percent counter when this counter is nested."""
         return self._parent
 
     @property
     def children(self) -> Sequence[Percent]:
+        """Return an immutable view of this counter's child percentages."""
         if self._child_view is None:
             self._child_view = SequenceView(self._children)
         # noinspection PyTypeChecker
@@ -472,6 +498,7 @@ class Percent(Counter):
     # noinspection PyUnresolvedReferences
     @property
     def long_name(self):
+        """Return the full hierarchical name for this percent counter."""
         name = self.name
         if self.is_child():
             parent = self
@@ -482,10 +509,12 @@ class Percent(Counter):
 
     @property
     def percent(self):
+        """Return completion as a value between ``0`` and ``1``."""
         return self.current / self.cap
 
     @percent.setter
     def percent(self, value):
+        """Set completion as a normalized value between ``0`` and ``1``."""
         if value < 0:
             raise ValueError("percent cannot be less than zero.")
         elif value > 1:
@@ -493,24 +522,29 @@ class Percent(Counter):
         self.current = self.cap * value
 
     def larger_percent(self):
+        """Return completion as a percentage between ``0`` and ``100``."""
         return self.percent * 100
 
     @property
     def current(self):
+        """Return the current completed amount."""
         return super().current
 
     @current.setter
     def current(self, amount):
+        """Set the completed amount, clamping it to ``cap``."""
         if amount >= self.cap:
             amount = self.cap
         super().current = amount
 
     @property
     def cap(self):
+        """Return the total amount required for completion."""
         return self._cap
 
     @cap.setter
     def cap(self, amount):
+        """Set the completion cap without dropping below ``current``."""
         if amount <= self.current:
             self._cap = self.current
         else:
@@ -518,10 +552,12 @@ class Percent(Counter):
 
     @property
     def step(self):
+        """Return the default amount added per tick or child completion."""
         return self._step
 
     @step.setter
     def step(self, count):
+        """Set the default increment while clamping it to a valid range."""
         if count <= 0.0001:
             self._step = 0.0001
         elif count >= self.cap:
@@ -535,18 +571,23 @@ class Percent(Counter):
 
     @property
     def worth(self):
+        """Return how much this child contributes to its parent on completion."""
         return self._worth
 
     def is_child(self):
+        """Return whether this percent counter has a parent."""
         return self._parent is not None
 
     def is_parent(self):
+        """Return whether this percent counter has child counters."""
         return len(self._children) != 0
 
     def is_complete(self):
+        """Return whether this percent counter has reached its cap."""
         return self.percent >= 1
 
     def build_message(self, compact: bool = False, allow_lr: bool = False) -> tuple[list[str], list[str], bool]:
+        """Build the default progress message for this percentage counter."""
         title: list[str] = []
         message: list[str] = []
 
@@ -631,4 +672,3 @@ class Percent(Counter):
     def __bool__(self):
         """ True if this Percent is 100% else False """
         return self.is_complete()
-

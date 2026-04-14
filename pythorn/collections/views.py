@@ -4,6 +4,8 @@ from pythorn.collections.range import slice_len
 
 
 class SequenceView[T](Sequence[T]):
+    """Expose a sliced or reversed read-only view over another sequence."""
+
     def __init__(self, origin: Sequence[T], *, reverse: bool = False, cut: Optional[slice]=None):
         """
         Creates a view of a sequence.
@@ -19,27 +21,33 @@ class SequenceView[T](Sequence[T]):
 
     @property
     def origin_size(self):
+        """Return the size of the underlying origin sequence."""
         return len(self._origin)
 
     @property
     def is_reversed(self):
+        """Return whether the view iterates in reverse order."""
         return self._reverse
 
     @property
     def parent(self):
+        """Return the parent view when this view came from slicing another view."""
         return self._parent
 
     @property
     def has_parent(self):
+        """Return whether this view was derived from another view."""
         return self._parent is not None
 
     @property
     def cut(self):
+        """Return the normalized slice this view exposes on the origin."""
         # Fully normalize against the real origin length.
         return slice(*self._cut.indices(self.origin_size))
 
     @property
     def has_cut(self):
+        """Return whether this view exposes only part of the origin."""
         return self.cut != slice(0, self.origin_size, 1)
 
     def _view_range(self) -> range:
@@ -69,11 +77,13 @@ class SequenceView[T](Sequence[T]):
         return value in self._origin
 
     def count(self, value) -> int:
+        """Count occurrences of ``value`` within the visible portion of the view."""
         if self.has_cut:
             return self._origin[self.cut].count(value)
         return self._origin.count(value)
 
     def index(self, value, start: int = 0, stop: Optional[int] = None) -> int:
+        """Return the view-local index of ``value`` between ``start`` and ``stop``."""
         r = self._view_range()
         length = len(r)
 
@@ -121,6 +131,7 @@ class MapView[KT, VT](Mapping[KT, VT]):
         return len(self._origin)
 
     def get(self, key: KT, default=None, /) -> VT:
+        """Return the mapped value for ``key`` or ``default`` if it is absent."""
         return self._origin.get(key, default)
 
     def __getitem__(self, key, /):

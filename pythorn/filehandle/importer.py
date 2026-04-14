@@ -14,6 +14,8 @@ EMPTY_PATH = Path()
 StrPath: TypeAlias = str | os.PathLike[str]
 
 class CallerRoot:
+    """Track a discovered project root and its caller-specific children."""
+
     def __init__(self, path: Path = EMPTY_PATH, source_dir: Optional[StrPath] = None, allow_path_changes=True, allow_source_changes=True):
         self._path = path
         self._source_dir = source_dir
@@ -24,14 +26,17 @@ class CallerRoot:
 
     @property
     def path(self):
+        """Return the tracked project or caller path."""
         return self._path
 
     @property
     def has_path(self):
+        """Return whether a non-empty path has been discovered."""
         return self._path is not None and self._path != EMPTY_PATH
 
     @path.setter
     def path(self, path):
+        """Set the tracked path when path changes are allowed."""
         if self._path_can_change:
             if not isinstance(path, Path):
                 if path is None:
@@ -44,6 +49,7 @@ class CallerRoot:
 
     @property
     def source_dir(self):
+        """Return the effective source directory beneath the tracked path."""
         path = self.path
         source_dir = self._source_dir
         if source_dir is not None:
@@ -54,6 +60,7 @@ class CallerRoot:
 
     @source_dir.setter
     def source_dir(self, source: StrPath | None):
+        """Set the relative or absolute source directory when allowed."""
         if self._source_can_change:
             if source is not None and not isinstance(source, StrPath):
                 source = str(source)
@@ -63,13 +70,16 @@ class CallerRoot:
 
     @property
     def parent(self):
+        """Return the parent ``CallerRoot`` in the discovery tree."""
         return self._parent
 
     @property
     def children(self) -> Collection[CallerRoot]:
+        """Return child caller roots discovered beneath this root."""
         return self._children.values()
 
     def child(self, path: Path, source_dir: Optional[StrPath] = None):
+        """Return or create a cached child root for ``path`` and ``source_dir``."""
         combine_paths = f"{path}-:-{source_dir}"
         child = self._children.setdefault(combine_paths, CallerRoot(path, source_dir))
         child._parent = self
@@ -153,6 +163,8 @@ def with_caller_context(*, needs_caller_root: bool = False, check_output: bool =
 
 @with_caller_context()
 def to_path(*args: StrPath, sub_to_source: bool = False, resolve: bool=False, strict:bool=False, project_root: CallerRoot=_PROJECT_ROOT) -> Path:
+    """Resolve path fragments relative to the tracked project or source root."""
+
     source_dir = project_root.source_dir
     path = Path(*args)
     if path.is_absolute():
@@ -195,6 +207,8 @@ def change_source_dir(source_dir: StrPath, *, path: Optional[Path]=None, strict:
 
 @with_caller_context()
 def convert_dot_notation(s: str, *, project_root: CallerRoot=_PROJECT_ROOT) -> str:
+    """Convert dotted module notation into an existing project-relative path."""
+
     s = s.replace(".", "/")
     if (project_root.source_dir/s).exists():
         return s
@@ -205,6 +219,8 @@ def convert_dot_notation(s: str, *, project_root: CallerRoot=_PROJECT_ROOT) -> s
 
 
 def load_target_module(name: str, path: Path | StrPath, at_local=False) -> ModuleType:
+    """Load and register a Python module directly from a filesystem path."""
+
     if at_local:
         path = LOCAL_SOURCE_DIR / path
     if not isinstance(path, Path):
@@ -224,6 +240,8 @@ def load_target_module(name: str, path: Path | StrPath, at_local=False) -> Modul
 
 
 class ModuleInfo:
+    """Store filesystem-backed metadata for a module and its submodules."""
+
     def __init__(self, path: Path, *, name: Optional[str]=None, submodules: Optional[Iterable[ModuleInfo]] = None):
         """
         Initialize module metadata for a file system path.
@@ -255,6 +273,7 @@ class ModuleInfo:
 
     @property
     def import_name(self):
+        """Return the dotted import path built from this module's ancestry."""
         name = self._name
         if self._parent is not None:
             parent = self._parent
@@ -265,18 +284,22 @@ class ModuleInfo:
 
     @property
     def name(self):
+        """Return the local module name."""
         return self._name
 
     @property
     def path(self):
+        """Return the resolved filesystem path for this module."""
         return self._path
 
     @property
     def parent(self):
+        """Return the parent module info if one exists."""
         return self._parent
 
     @property
     def sub_modules(self):
+        """Return known submodule metadata keyed by module name."""
         return self._sub_modules
 
     @property
@@ -288,6 +311,7 @@ class ModuleInfo:
 
     @property
     def is_built(self):
+        """Return whether a runtime ``Module`` wrapper has been created."""
         return self._module is not None
 
     def build_module(self):
@@ -323,6 +347,8 @@ NO_DELI_ATTRIBUTES = (
     "__eq__", "__ne__", "__lt__", "__le__", "__gt__", "__ge__",
 )
 class Module:
+    """Expose a package tree as lazily loaded attributes and submodules."""
+
     def __init__(self, *args, module_info: Optional[ModuleInfo]=None, **kwargs):
         module_info = module_info if module_info is not None else ModuleInfo(*args, **kwargs)
         if not module_info.is_built:

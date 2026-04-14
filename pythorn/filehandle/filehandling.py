@@ -4,6 +4,8 @@ from typing import MutableMapping, Sequence, overload, Iterable, final
 
 
 class File:
+    """Wrap a filesystem path with helpers for tree navigation and I/O."""
+
     def __init__(self, f_path, children=None, parent=None, sisters=None, find_children=True):
         self._file_path: str = os.path.abspath(f_path)
         self._file_path = self._file_path.replace("\\", "/")
@@ -17,14 +19,17 @@ class File:
 
     @property
     def file_path(self):
+        """Return the normalized absolute path for this file wrapper."""
         return self._file_path
 
     @file_path.setter
     def file_path(self, f_path: str):
+        """Disallow changing the wrapped path after construction."""
         raise NotImplementedError("This operation doesn't exist... Cannot change the file path of a file.")
 
     @property
     def parent(self):
+        """Return the parent directory as a ``File`` wrapper when available."""
         if self._parent is None and self.exists():
             if "/" in self._file_path:
                 splitted = self._file_path.split("/")
@@ -35,9 +40,11 @@ class File:
 
     @property
     def children(self):
+        """Return a read-only view of discovered child files."""
         return self._children.readonly()
 
     def update_children(self):
+        """Refresh the cached child list when this file represents a directory."""
         if os.path.isdir(self._file_path):
             for f in os.listdir(self._file_path):
                 try:
@@ -46,6 +53,7 @@ class File:
                     pass
 
     def create_child(self, f, file_content=None):
+        """Create, register, and optionally populate a child path beneath this one."""
         file = None
         if isinstance(f, File):
             file = f
@@ -66,22 +74,27 @@ class File:
 
     @property
     def sisters(self):
+        """Return sibling files from the parent directory when known."""
         return self._sisters.readonly()
 
     def exists(self):
+        """Return whether the wrapped filesystem path exists."""
         return os.path.exists(self.file_path)
 
     def isfile(self):
+        """Return whether the wrapped path should be treated as a file."""
         if not os.path.isfile(self.file_path):
             return "." in self.file_path.split("/")[-1]
         return True
 
     def isdir(self):
+        """Return whether the wrapped path should be treated as a directory."""
         if not os.path.isdir(self.file_path):
             return "." not in self.file_path.split("/")[-1]
         return True
 
     def build(self, data=None):
+        """Create the wrapped file or directory on disk."""
         if not self.exists():
             if self.isfile():
                 splitted = self.file_path.split("/")
@@ -94,6 +107,7 @@ class File:
             raise IOError("Cannot build what already exists.")
 
     def write(self, data, line=-1, insert=True, override=False):
+        """Write data to the file, optionally inserting or replacing one line."""
         if data is None:
             data = ""
         if self.isdir():
@@ -121,11 +135,13 @@ class File:
             file.writelines(lines)
 
     def read(self, hint=-1):
+        """Read and return lines from the wrapped file."""
         with open(self.file_path, "r") as file:
             lines = file.readlines(hint)
         return lines
 
     def rig(self, func, mode="r"):
+        """Open the file and pass the file object to ``func``."""
         if callable(func):
             with open(self.file_path, mode) as file:
                 ret = func(file)
@@ -151,18 +167,23 @@ class _Children(Sequence[File]):
         self._readonly = _ReadOnlyChildren(self)
 
     def readonly(self):
+        """Return the cached read-only wrapper around this child collection."""
         return self._readonly
 
     def view(self):
+        """Return all children as a tuple."""
         return tuple(self._list)
 
     def files(self):
+        """Return only child entries that are files."""
         return tuple(self._files)
 
     def dirs(self):
+        """Return only child entries that are directories."""
         return tuple(self._dirs)
 
     def add(self, f: File):
+        """Add a child file wrapper and index it by file-vs-directory type."""
         if f not in self._list:
             self._list.append(f)
             if f.isfile():
@@ -200,12 +221,15 @@ class _ReadOnlyChildren(Sequence[File]):
         self._children = children
 
     def view(self):
+        """Return all wrapped children as an immutable tuple."""
         return self._children.view()
 
     def files(self):
+        """Return only wrapped child files."""
         return self._children.files()
 
     def dirs(self):
+        """Return only wrapped child directories."""
         return self._children.dirs()
 
     def __getitem__(self, index):
@@ -217,6 +241,8 @@ class _ReadOnlyChildren(Sequence[File]):
 # JSON File handling
 
 class JSONEncoder(json.JSONEncoder): # The custom json encoder class
+    """Encode JSON with compact primitives and expanded nested structures."""
+
     def __init__(self, *, skipkeys=False, ensure_ascii=True,
             check_circular=True, allow_nan=True, sort_keys=False,
             indent=None, separators=None, default=None):
@@ -297,6 +323,7 @@ class JSONEncoder(json.JSONEncoder): # The custom json encoder class
         return chunks
 
     def iterencode(self, o, _one_shot = False):
+        """Yield encoded JSON chunks, honoring the custom indentation strategy."""
         if self.indent is None:
             # Default encoder handling when indent is none.
             return super().iterencode(o, _one_shot)
@@ -306,6 +333,8 @@ class JSONEncoder(json.JSONEncoder): # The custom json encoder class
 
 
 class JSONFile[_VT](MutableMapping[str, _VT]):
+    """Persist a mutable mapping to a JSON file or nested JSON object."""
+
     def __init__(self, f_path: str | File = None, data: dict[str, _VT]=None, mother=None):
         self.encoder = None
         self._file = None
@@ -321,10 +350,12 @@ class JSONFile[_VT](MutableMapping[str, _VT]):
 
     @property
     def file(self) -> File | str | None:
+        """Return the backing file path or nested key for this JSON view."""
         return self._file
 
     @file.setter
     def file(self, f_path: str | File):
+        """Set the backing file path or nested key for this JSON view."""
         if self.has_mother() and f_path is None:
             raise TypeError("file must not be None as it's this JSON file's key in it's mother JSON file.")
         if isinstance(f_path, str) and not self.has_mother():
@@ -332,6 +363,7 @@ class JSONFile[_VT](MutableMapping[str, _VT]):
         self._file = f_path
 
     def exists(self):
+        """Return whether the backing file or nested JSON key exists."""
         if self.has_path():
             if self.has_mother():
                 return self.file in self._mother.keys()
@@ -339,9 +371,11 @@ class JSONFile[_VT](MutableMapping[str, _VT]):
         return False
 
     def has_path(self):
+        """Return whether this JSON wrapper is associated with a file or key."""
         return self.file is not None
 
     def has_mother(self):
+        """Return whether this JSON wrapper is nested inside another ``JSONFile``."""
         return self._mother is not None
 
     def load(self):
@@ -382,6 +416,7 @@ class JSONFile[_VT](MutableMapping[str, _VT]):
         return value
 
     def setdefault(self, key: str, default: _VT = None) -> _VT | None:
+        """Set and persist ``default`` for ``key`` when it is missing."""
         value = self._data.setdefault(key, default)
         self.save()
         if isinstance(value, dict):
@@ -389,11 +424,13 @@ class JSONFile[_VT](MutableMapping[str, _VT]):
         return value
 
     def pop(self, key: str) -> _VT:
+        """Remove and persist the value stored at ``key``."""
         value = self._data.pop(key)
         self.save()
         return value
 
     def popitem(self):
+        """Remove and persist the most recent key-value pair."""
         item = self._data.popitem()
         self.save()
         return item
@@ -427,6 +464,7 @@ class JSONFile[_VT](MutableMapping[str, _VT]):
         self.save()
 
     def pathed_as(self, other):
+        """Return whether another ``JSONFile`` points at the same backing path."""
         if isinstance(other, JSONFile):
             if self.file == other.file:
                 if self._mother == other._mother:

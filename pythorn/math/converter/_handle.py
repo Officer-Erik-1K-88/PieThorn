@@ -5,6 +5,8 @@ from decimal import Decimal
 decimal.getcontext().prec = 2448
 
 def localcontext():
+    """Return ``decimal.localcontext`` using the module's configured precision."""
+
     return decimal.localcontext()
 
 # --- Special handling ---

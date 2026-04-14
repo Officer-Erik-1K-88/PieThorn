@@ -14,6 +14,8 @@ __all__ = [
 
 # --- logistics ---
 class LogicGates:
+    """Evaluate basic boolean gates with configurable truthy polarity."""
+
     def __init__(self, reverse=False):
         self.truthy = True
         self.falsy = False
@@ -22,6 +24,7 @@ class LogicGates:
             self.falsy = True
 
     def and_gate(self, *boolean):
+        """Return the logical AND of the provided boolean-like values."""
         bools = list(boolean) if len(boolean) > 1 else boolean[0]
         bool_val = self.truthy
         for y in bools:
@@ -32,6 +35,7 @@ class LogicGates:
         return bool_val
 
     def or_gate(self, *boolean):
+        """Return the logical OR of the provided boolean-like values."""
         bools = list(boolean) if len(boolean) > 1 else boolean[0]
         bool_val = self.falsy
         for y in bools:
@@ -42,6 +46,7 @@ class LogicGates:
         return bool_val
 
     def not_gate(self, *boolean):
+        """Return the logical NOT of one value or each value in a collection."""
         bools = list(boolean) if len(boolean) > 1 else boolean[0]
         bool_vals = []
         if isinstance(bools,list):
@@ -59,6 +64,7 @@ class LogicGates:
                 return self.truthy
 
     def nand_gate(self, *boolean):
+        """Return the logical NAND of the provided boolean-like values."""
         bools = list(boolean) if len(boolean) > 1 else boolean[0]
         bool_val = self.falsy
         for y in bools:
@@ -69,6 +75,7 @@ class LogicGates:
         return bool_val
 
     def nor_gate(self, *boolean):
+        """Return the logical NOR of the provided boolean-like values."""
         bools = list(boolean) if len(boolean) > 1 else boolean[0]
         bool_val = self.truthy
         for y in bools:
@@ -79,6 +86,7 @@ class LogicGates:
         return bool_val
 
     def xor_gate(self, *boolean):
+        """Return the logical XOR of the provided boolean-like values."""
         bools = list(boolean) if len(boolean) > 1 else boolean[0]
         bool_val = self.falsy
         for y in bools:
@@ -93,6 +101,7 @@ class LogicGates:
         return bool_val
 
     def xnor_gate(self, *boolean):
+        """Return the logical XNOR of the provided boolean-like values."""
         bools = list(boolean) if len(boolean) > 1 else boolean[0]
         bool_val = self.truthy
         for y in bools:

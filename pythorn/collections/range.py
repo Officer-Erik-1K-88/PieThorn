@@ -19,6 +19,8 @@ def combine_slices(slice1: slice, slice2: slice, max_len: int) -> slice:
     return slice(r2.start, r2.stop, r2.step)
 
 class SliceMode(Enum):
+    """Describe how safely a slice can be composed without sequence length."""
+
     POSITIVE = auto()
     NEGATIVE = auto()
     POSITIVE_HEURISTIC = auto()
@@ -28,6 +30,7 @@ class SliceMode(Enum):
 
     @staticmethod
     def classify_one(s: slice) -> "SliceMode":
+        """Classify one slice by how dependent it is on sequence length."""
         start = s.start
         stop = s.stop
 
@@ -54,6 +57,7 @@ class SliceMode(Enum):
 
     @staticmethod
     def classify(s1: slice, s2: Optional[slice]=None) -> SliceMode | tuple[SliceMode, SliceMode, SliceMode]:
+        """Classify one or two slices and their combined composition mode."""
         m1 = SliceMode.classify_one(s1)
 
         if s2 is None:
@@ -95,11 +99,15 @@ class SliceMode(Enum):
 
 @dataclass(frozen=True)
 class SliceComposeResult:
+    """Hold the result of composing two slices and its confidence metadata."""
+
     slice: slice
     exact: bool
     mode: SliceMode
 
 def is_full_slice(s: slice):
+    """Return ``True`` when a slice leaves both bounds open."""
+
     return s.start is None and s.stop is None
 
 def adhoc_combine_slices(s1: slice, s2: slice) -> SliceComposeResult:
@@ -237,4 +245,6 @@ def adhoc_combine_slices(s1: slice, s2: slice) -> SliceComposeResult:
         )
 
 def slice_len(slice1: slice, max_len: int):
+    """Return the concrete length of a slice for a sequence of ``max_len``."""
+
     return len(range(*slice1.indices(max_len)))

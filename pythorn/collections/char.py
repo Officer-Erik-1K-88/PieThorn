@@ -3,6 +3,8 @@ from typing import Iterable, Iterator, TypeAlias, Callable, SupportsIndex
 CharValid: TypeAlias = 'Char | str | int'
 
 class Char:
+    """Represent a single Unicode character or an empty sentinel value."""
+
     def __init__(self, char: CharValid):
         if isinstance(char, Char):
             self._char = char.char()
@@ -106,8 +108,10 @@ class Char:
         return self.char().isprintable()
 
     def upper(self):
+        """Return an uppercased copy of this character."""
         return Char(self._char.upper())
     def lower(self):
+        """Return a lowercased copy of this character."""
         return Char(self._char.lower())
 
     def compare(self, other):
@@ -189,6 +193,8 @@ class Char:
 
 
 class CharSequence(tuple[Char]):
+    """Store a normalized immutable sequence of ``Char`` instances."""
+
     def __new__(cls, chars: Iterable[CharValid]):
         out: list[Char] = []
         append = out.append
@@ -255,26 +261,32 @@ class CharIterator(Iterator[Char]):
 
     @property
     def current(self) -> Char:
+        """Return the current character or an empty sentinel when out of range."""
         if 0 <= self._pos < self.char_count():
             return self._chars[self._pos]
         return Char(-1)
 
     @property
     def skip_space(self):
+        """Return whether whitespace is skipped during iteration."""
         return self._skip_space
 
     @property
     def pos(self):
+        """Return the current iterator position."""
         return self._pos
 
     @property
     def ate_next(self):
+        """Return whether ``eat`` already consumed the next character."""
         return self._ate_next
 
     def char_count(self):
+        """Return the total number of characters in the source sequence."""
         return len(self._chars)
 
     def has_current(self):
+        """Return whether the iterator currently points at a valid character."""
         return -1 < self._pos < self.char_count()
 
     def _next_index(self) -> int:
@@ -290,9 +302,11 @@ class CharIterator(Iterator[Char]):
         return i
 
     def has_next(self):
+        """Return whether another character can be consumed."""
         return self._next_index() < self.char_count()
 
     def next_ended(self):
+        """Return whether iteration is exhausted and clear any eaten-next flag."""
         if self.has_next():
             return False
         self._ate_next = False
@@ -327,6 +341,7 @@ class CharIterator(Iterator[Char]):
         return False
 
     def next(self):
+        """Advance to and return the next available character."""
         if self.next_ended():
             raise StopIteration()
 
@@ -354,10 +369,12 @@ class CharIterator(Iterator[Char]):
                 break
 
     def peek(self):
+        """Return the next available character without consuming it."""
         if self.has_next():
             return self._chars[self._next_index()]
         return None
 
     def peek_check(self, action: Callable[[Char], bool]):
+        """Apply ``action`` to ``peek()`` and return the result."""
         return action(self.peek())
 

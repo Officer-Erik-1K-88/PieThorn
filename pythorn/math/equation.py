@@ -5,6 +5,8 @@ from typing import Callable, MutableSequence, overload, Iterable, Sequence, Mapp
 from pythorn.collections.char import CharIterator, CharSequence
 
 class Param(ABC):
+    """Define the interface for named or positional equation parameters."""
+
     @property
     @abstractmethod
     def name(self):
@@ -14,6 +16,7 @@ class Param(ABC):
     @property
     @abstractmethod
     def takes_boolean(self):
+        """Whether the parameter accepts boolean expressions."""
         pass
 
     @property
@@ -61,6 +64,8 @@ class Param(ABC):
 
 
 class Parameter(Param):
+    """Store a concrete parameter definition and optional bound value."""
+
     def __init__(self, name: str, takes_boolean: bool = False, default=None, value=None, required=False):
         self._name = name
         self._takes_boolean = takes_boolean
@@ -75,6 +80,7 @@ class Parameter(Param):
 
     @property
     def takes_boolean(self):
+        """Whether the parameter accepts boolean expressions."""
         return self._takes_boolean
 
     @property
@@ -94,6 +100,8 @@ class Parameter(Param):
 
 
 class Parameters(Sequence[Param]):
+    """Provide ordered parameter definitions with name-based lookup helpers."""
+
     def __init__(self, parameters: tuple[Param, ...] | None=None):
         self._parameters = tuple() if parameters is None else parameters
         self._param_names: dict[str, int] = {}
@@ -202,6 +210,8 @@ class Parameters(Sequence[Param]):
 
 
 class Function:
+    """Represent a callable or constant value that can appear in equations."""
+
     def __init__(
             self,
             name: str,
@@ -221,13 +231,16 @@ class Function:
 
     @property
     def name(self):
+        """Return the function name."""
         return self._name
 
     @property
     def parameters(self):
+        """Return this function's declared parameters."""
         return self._parameters
 
     def is_value(self):
+        """Return whether this function is a constant value."""
         return self._value is not None
 
     def __call__(self, parameters: Parameters) -> Decimal:
@@ -239,6 +252,7 @@ class Function:
         return self._action(new_parameters)
 
     def apply(self, param_handler: Callable[[Parameters], Parameters] | None = None) -> Decimal:
+        """Evaluate the function using a parameter transformer or constant value."""
         if self._action is None:
             return self._value
 
@@ -248,6 +262,8 @@ class Function:
 
 
 class Functions:
+    """Index equation functions by name while preserving declaration order."""
+
     def __init__(self, functions: tuple[Function, ...]):
         self._functions = functions
         self._func_names: dict[str, int] = {}
@@ -267,6 +283,7 @@ class Functions:
         return self._func_names[name]
 
     def names(self):
+        """Return the names of all registered functions."""
         return self._func_names.keys()
 
     def __getitem__(self, item):
@@ -285,20 +302,27 @@ FUNCTIONS = Functions(())
 
 
 class EquationPiece[T]:
+    """Wrap a typed token value used by the equation parser."""
+
     def __init__(self, value: T):
         self._value = value
 
     @property
     def value(self) -> T:
+        """Return the wrapped token value."""
         return self._value
 
 
 class Variable(EquationPiece[str]):
+    """Represent a variable token referenced inside an equation string."""
+
     def __init__(self, name: str):
         super().__init__(name)
 
 
 class Symbol[**P, R]:
+    """Describe a symbolic operator and the callable bound to it."""
+
     def __init__(
             self,
             symbol: str,
@@ -316,18 +340,22 @@ class Symbol[**P, R]:
 
     @property
     def symbol(self) -> str:
+        """Return the symbol text."""
         return self._symbol
 
     @property
     def name(self) -> str:
+        """Return the descriptive name of the symbol."""
         return self._name
 
     @property
     def param_count(self) -> int:
+        """Return how many operands this symbol expects."""
         return self._param_count
 
     @property
     def after_loop(self) -> bool:
+        """Return whether this symbol applies after pairwise reductions."""
         return self._after_loop
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
@@ -336,6 +364,7 @@ class Symbol[**P, R]:
         return self._action(*args, **kwargs)
 
     def compare(self, other):
+        """Compare this symbol with another symbol or comparable value."""
         if self is other:
             return 0
         other_symbol = None
@@ -373,6 +402,8 @@ class Symbol[**P, R]:
 
 
 class Symbols(Mapping[str, Symbol]):
+    """Map symbol text to ``Symbol`` objects with filtering helpers."""
+
     def __init__(self, symbols: Iterable[Symbol]):
         self._symbol_list: list[str] = []
         self._param_counts: dict[int, list[str]] = {}
@@ -384,13 +415,16 @@ class Symbols(Mapping[str, Symbol]):
             self._param_counts.setdefault(symbol.param_count, []).append(sym)
 
     def index(self, value: str | Symbol, start: int = 0, stop=None) -> int:
+        """Return the ordered position of a symbol."""
         value = str(value)
         return self._symbol_list.index(value, start, stop)
 
     def at(self, index: int) -> Symbol:
+        """Return the symbol stored at ``index``."""
         return self._symbols[self._symbol_list[index]]
 
     def contains_any(self, values: Iterable[object]):
+        """Return whether any provided value matches a registered symbol."""
         for value in values:
             if value in self._symbols:
                 return True
@@ -403,6 +437,7 @@ class Symbols(Mapping[str, Symbol]):
         return len(self._symbol_list)
 
     def iter(self, param_count: int | None = None, after_loop: bool = True, during_loop: bool = True):
+        """Iterate symbols filtered by arity and loop timing."""
         loop_list = self._symbol_list if param_count is None else self._param_counts.get(param_count, [])
         for symbol in loop_list:
             sym = self[symbol]
@@ -448,15 +483,19 @@ UNION_SYMBOLS = Symbols([
 
 
 class Operator(EquationPiece[str]):
+    """Represent an equation operator that can calculate or compare values."""
+
     def __init__(self, operator: str):
         super().__init__(operator)
 
     def calculate(self, num1: Decimal, num2: Decimal) -> Decimal:
+        """Apply this operator as a mathematical operator."""
         if self.value in MATH_SYMBOLS:
             return MATH_SYMBOLS[self.value](num1, num2)
         raise ParseError("`operator` isn't a mathematical operator")
 
     def compare(self, num1: Decimal, num2: Decimal) -> bool:
+        """Apply this operator as a comparison operator."""
         if self.value in COMPARISON_SYMBOLS:
             return COMPARISON_SYMBOLS[self.value](num1, num2)
         raise ParseError("`operator` isn't a comparison operator")
@@ -552,6 +591,8 @@ class Operator(EquationPiece[str]):
 
 
 class Number(EquationPiece[Decimal]):
+    """Represent a decimal literal parsed from an equation."""
+
     def __init__(self, number: Decimal):
         super().__init__(number)
 
@@ -561,6 +602,8 @@ class ChildError(RuntimeError):
 
 
 class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[EquationPiece]):
+    """Store the mutable parsed token tree for an equation expression."""
+
     def __init__(self, parsed_equation: Iterable[EquationPiece]=None):
         super().__init__(list(parsed_equation))
         self._in_sub = False
@@ -568,18 +611,22 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
 
     @property
     def in_sub(self):
+        """Return whether parsing is currently inside a sub-expression."""
         return self._in_sub
 
     def enter_sub(self):
+        """Mark the current parsed equation as entering a sub-expression."""
         self.get_current()._in_sub = True
 
     def exit_sub(self):
+        """Leave the current sub-expression, if one is active."""
         try:
             self.get_current()._in_sub = False
         except ChildError:
             self._in_sub = False
 
     def get_sub(self, throw_on_not_found=False, throw_on_zero=False):
+        """Return the active child sub-expression, creating it when allowed."""
         if self._in_sub:
             if len(self._value) == 0:
                 if throw_on_zero:
@@ -597,6 +644,7 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
         raise ChildError("Not in a child process")
 
     def get_current(self, sub_tonf=False, sub_toz=False) -> ParsedEquation:
+        """Return the currently active parse target."""
         if self._in_sub:
             return self.get_sub(sub_tonf, sub_toz)
         if self._in_function:
@@ -605,17 +653,21 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
 
     @property
     def in_function(self):
+        """Return whether parsing is currently inside a function call."""
         return self._in_function
 
     def enter_function(self, name: str, index: int):
+        """Begin capturing arguments for the named function."""
         current = self.get_current(sub_tonf=True, sub_toz=True)
         current._value.append(EquationFunc(index, name))
         current._in_function = True
 
     def exit_function(self):
+        """Leave the current function-call parsing context."""
         self.get_current(sub_tonf=True, sub_toz=True)._in_function = False
 
     def get_function(self):
+        """Return the active parsed function call."""
         if self._in_function:
             if len(self._value) == 0:
                 raise ChildError("The parent ParsedEquation is empty")
@@ -626,18 +678,23 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
         raise ChildError("Not in a child process")
 
     def index(self, value, start=0, stop=None):
+        """Return the index of ``value`` in the active parse target."""
         return self.get_current(True, True)._value.index(value, start, stop)
 
     def count(self, value):
+        """Count ``value`` within the active parse target."""
         return self.get_current(True, True)._value.count(value)
 
     def insert(self, index: int, value: EquationPiece):
+        """Insert a parsed token into the active parse target."""
         self.get_current(True, True)._value.insert(index, value)
 
     def append(self, value: EquationPiece):
+        """Append a parsed token to the active parse target."""
         self.get_current()._value.append(value)
 
     def extend(self, values: Iterable[EquationPiece]):
+        """Append multiple parsed tokens to the active parse target."""
         current = self.get_current()
         if values is current:
             raise ValueError("Cannot extend because `values` is `current` ParsedEquation")
@@ -649,15 +706,18 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
         raise NotImplementedError("`reverse` not implemented")
 
     def clear(self):
+        """Clear the active parse target and exit nested parse states."""
         current = self.get_current(True, True)
         current._value.clear()
         current._in_function = False
         current._in_sub = False
 
     def pop(self, index: int=-1):
+        """Remove and return an item from the active parse target."""
         return self.get_current(True, True)._value.pop(index)
 
     def remove(self, value):
+        """Remove the first matching token from the active parse target."""
         return self.get_current(True, True)._value.remove(value)
 
     def __iadd__(self, values):
@@ -711,6 +771,8 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
 
 
 class FuncParam(ParsedEquation, Param):
+    """Represent a function argument whose value is itself a parsed equation."""
+
     def __init__(
             self,
             name: str,
@@ -727,22 +789,28 @@ class FuncParam(ParsedEquation, Param):
 
     @property
     def name(self):
+        """Return the parameter name."""
         return self._name
 
     @property
     def takes_boolean(self):
+        """Return whether the parameter accepts boolean expressions."""
         return self._takes_boolean
 
     @property
     def required(self):
+        """Return whether this parameter must be supplied."""
         return self._required
 
     @property
     def default(self):
+        """Return the default parsed value for this parameter."""
         return self._default
 
 
 class EquationFunc(EquationPiece[int]):
+    """Reference a registered function and its parsed argument values."""
+
     def __init__(self, index: int, name: str):
         super().__init__(index)
         self._name = name
@@ -750,22 +818,27 @@ class EquationFunc(EquationPiece[int]):
 
     @property
     def name(self) -> str:
+        """Return the referenced function name."""
         return self._name
 
     @property
     def parameters(self) -> Parameters:
+        """Return parsed parameters collected for this function call."""
         return self._parameters
 
     def get(self) -> Function:
+        """Return the registered function referenced by this token."""
         return FUNCTIONS[self.value]
 
     def get_param(self) -> FuncParam:
+        """Return the most recently added parameter parse target."""
         param = self._parameters[len(self._parameters) - 1]
         if isinstance(param, FuncParam):
             return param
         raise TypeError("EquationFunc's 'parameters' property isn't composed correctly")
 
     def add_param(self, param: FuncParam):
+        """Append a parsed parameter to this function call."""
         self._parameters = self._parameters + param
 
 
@@ -786,13 +859,16 @@ class _EvalParser(CharIterator):
 
     @property
     def context(self):
+        """Return the decimal context used during parsing."""
         return self._context
 
     @property
     def parsed(self):
+        """Return the parsed equation tree built by this parser."""
         return self._parsed
 
     def parse(self):
+        """Parse the full input sequence into ``parsed``."""
         self._parse_expression()
         if not self.next_ended():
             raise ParseError("Ended too Early")
@@ -973,6 +1049,8 @@ class _EvalParser(CharIterator):
 
 
 class Equation:
+    """Parse an equation string into a reusable tokenized representation."""
+
     def __init__(self, equation: str, context: Context):
         self._equation = equation
         self._context = context
@@ -982,11 +1060,14 @@ class Equation:
 
     @property
     def equation(self):
+        """Return the original equation string."""
         return self._equation
 
     @property
     def context(self):
+        """Return the decimal context associated with this equation."""
         return self._context
 
     def has_variables(self):
+        """Return whether the original equation string references variables."""
         return "$" in self._equation

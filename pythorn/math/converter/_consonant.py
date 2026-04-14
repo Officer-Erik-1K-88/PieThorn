@@ -2,6 +2,8 @@ from typing import Iterable, AbstractSet
 
 
 class Consonant:
+    """Describe a consonant suffix used when building number prefixes."""
+
     def __init__(self, converts: str, trails: bool, to: str=None):
         """
         This is the suffix of a ``NumberPrefix``.
