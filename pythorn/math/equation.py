@@ -105,6 +105,7 @@ class Parameters(Sequence[Param]):
     def __init__(self, parameters: tuple[Param, ...] | None=None):
         self._parameters = tuple() if parameters is None else parameters
         self._param_names: dict[str, int] = {}
+        # Precompute name-to-index lookup for non-positional parameters.
         i = 0
         for parameter in self._parameters:
             if not parameter.position_dependent:
@@ -145,6 +146,7 @@ class Parameters(Sequence[Param]):
         """
         new_list = list(self._parameters)
 
+        # Copy only supplied values into the declared parameter layout.
         i = 0
         for parameter in parameters:
             if parameter.position_dependent:
@@ -246,6 +248,7 @@ class Function:
     def __call__(self, parameters: Parameters) -> Decimal:
         if parameters is None:
             raise TypeError("`parameters` must be specified")
+        # Merge the provided arguments into this function's declared signature.
         new_parameters = self._parameters.fill(parameters)
         if not new_parameters.required_filled():
             raise TypeError("all required `parameters` must be filled")
@@ -631,6 +634,7 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
             if len(self._value) == 0:
                 if throw_on_zero:
                     raise ChildError("The parent ParsedEquation is empty")
+                # Lazily create the nested expression container on first access.
                 self._value.append(ParsedEquation())
             last_val = self._value[len(self._value) - 1]
             if not isinstance(last_val, ParsedEquation):
@@ -645,6 +649,8 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
 
     def get_current(self, sub_tonf=False, sub_toz=False) -> ParsedEquation:
         """Return the currently active parse target."""
+        # Route writes into the deepest active scope: sub-expression first,
+        # then the current function argument, otherwise the root expression.
         if self._in_sub:
             return self.get_sub(sub_tonf, sub_toz)
         if self._in_function:
@@ -869,11 +875,13 @@ class _EvalParser(CharIterator):
 
     def parse(self):
         """Parse the full input sequence into ``parsed``."""
+        # Arithmetic expressions are the top-level grammar entrypoint here.
         self._parse_expression()
         if not self.next_ended():
             raise ParseError("Ended too Early")
 
     def _parse_expression(self):
+        # expression := term (("+" | "-") term)*
         self._parse_term()
         while True:
             if self.eat("+"): # Addition
@@ -886,6 +894,7 @@ class _EvalParser(CharIterator):
                 break
 
     def _parse_term(self):
+        # term := factor (("*" | "/") factor)*
         self._parse_factor()
         while True:
             if self.eat("*"):  # Multiplication
@@ -898,6 +907,8 @@ class _EvalParser(CharIterator):
                 break
 
     def _parse_factor(self):
+        # factor handles unary operators, grouped expressions, literals,
+        # variables, and function calls.
         if self.eat("+"):
             self._parsed.append(Operator("+"))
             self._parse_factor()
@@ -909,12 +920,14 @@ class _EvalParser(CharIterator):
 
 
         if self.eat("("): # parentheses
+            # Parse a nested arithmetic expression into a child ParsedEquation.
             self._parsed.enter_sub()
             self._parse_expression()
             self._parsed.exit_sub()
             if not self.eat(")"):
                 raise SyntaxParseError("Missing closing parenthesis: ')'")
         elif self.eat("$"):
+            # Variables are delimited as $name$.
             var_name = ""
             while not self.eat("$"):
                 var_name += self.next()
@@ -922,11 +935,13 @@ class _EvalParser(CharIterator):
                     raise SyntaxParseError("Missing variable closer: '$'")
             self._parsed.append(Variable(var_name))
         elif self._peek_num_check(): # number
+            # Consume a decimal literal as a single Number token.
             str_val = ""
             while self._peek_num_check():
                 str_val += self.next()
             self._parsed.append(Number(Decimal(str_val, self.context)))
         elif self._peek_letter_check(): # function
+            # Consume an identifier, then bind and parse its argument list.
             func = ""
             while self._peek_letter_check():
                 func += self.next()
@@ -951,6 +966,8 @@ class _EvalParser(CharIterator):
         return self.peek_check(lambda future: future >= "a" or future <= "z" or future >= "A" or  future <= "Z")
 
     def _parse_statement(self):
+        # Boolean statements extend the arithmetic grammar with negation,
+        # grouping, comparisons, and unions.
         if self.eat("!"):
             self._parsed.append(Operator("!"))
             self._parse_statement()
@@ -975,6 +992,7 @@ class _EvalParser(CharIterator):
     def _parse_union(self, inst_state: bool):
         if inst_state:
             self._parse_statement()
+        # Union operators chain boolean statements left-to-right.
         while True:
             if self.eat("&"):
                 self._parsed.append(Operator("&"))
@@ -986,6 +1004,7 @@ class _EvalParser(CharIterator):
                 break
 
     def _parse_comparison(self):
+        # Comparisons are built from arithmetic expressions on both sides.
         self._parse_expression()
         # TODO: Add logic check to see if comparison is possible
 
@@ -1022,6 +1041,8 @@ class _EvalParser(CharIterator):
     def _parse_parameters(self, parameters: Parameters):
         if self.eat("("):
             end = False
+            # Each declared parameter gets its own parse target so nested
+            # expressions are captured independently.
             for parameter in parameters:
                 self._parsed.get_function().add_param(
                     FuncParam(
