@@ -31,13 +31,13 @@ class EquationModuleTestCase(unittest.TestCase):
     def setUp(self):
         self.context = Context()
         self._old_functions = equation_module.FUNCTIONS
-        equation_module.FUNCTIONS = Functions(())
+        equation_module.FUNCTIONS = Functions()
 
     def tearDown(self):
         equation_module.FUNCTIONS = self._old_functions
 
     def install_functions(self, *functions: Function):
-        equation_module.FUNCTIONS = Functions(tuple(functions))
+        equation_module.FUNCTIONS = Functions(*functions)
 
     def parse_expression(self, text: str) -> ParsedEquation:
         parser = _EvalParser(CharSequence(text), self.context)
@@ -224,17 +224,17 @@ class FunctionsTests(EquationModuleTestCase):
     def test_functions_get_index_names_and_contains(self):
         one = Function("one", value=Decimal("1"))
         two = Function("two", value=Decimal("2"))
-        functions = Functions((one, two))
+        functions = Functions(one, two)
 
         self.assertEqual(functions.get("two"), two)
-        self.assertEqual(functions.index("one"), 0)
+        self.assertEqual(functions.name_index("one"), 0)
         self.assertEqual(list(functions.names()), ["one", "two"])
         self.assertIn("one", functions)
         self.assertEqual(len(functions), 2)
         self.assertEqual(list(functions), [one, two])
 
     def test_functions_get_raises_for_missing_name(self):
-        functions = Functions((Function("one", value=Decimal("1")),))
+        functions = Functions(Function("one", value=Decimal("1")))
         with self.assertRaisesRegex(KeyError, "Parameter `missing` not found"):
             functions.get("missing")
 

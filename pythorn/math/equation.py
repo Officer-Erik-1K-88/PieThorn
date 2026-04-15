@@ -1,6 +1,6 @@
 from abc import abstractmethod, ABC
 from decimal import Decimal, Context
-from typing import Callable, MutableSequence, overload, Iterable, Sequence, Mapping, _T, Iterator
+from typing import Callable, MutableSequence, overload, Iterable, Sequence, Mapping, Iterator
 
 from pythorn.collections.char import CharIterator, CharSequence
 
@@ -294,7 +294,7 @@ class Functions(MutableSequence[Function]):
     def get(self, name: str) -> Function:
         """Get the function with the given name"""
         if name in self._func_names:
-            return self._functions[self.index(name)]
+            return self._functions[self.name_index(name)]
         raise KeyError(f"Parameter `{name}` not found")
 
     def name_index(self, name: str, start: int=0, stop: int | None=None) -> int:
