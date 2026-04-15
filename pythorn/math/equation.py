@@ -666,7 +666,7 @@ class Operator(EquationPiece[str]):
         """
         if len(args) == 0:
             raise ParseError("`args` can't be empty")
-        last = None
+        last: bool | None = None
 
         if not UNION_SYMBOLS.contains_any(self.value):
             raise ParseError("`operator` isn't an union operator")
@@ -683,7 +683,7 @@ class Operator(EquationPiece[str]):
         for symbol in UNION_SYMBOLS.iter(1, during_loop=False):
             if symbol in self.value:
                 last = UNION_SYMBOLS[symbol](last)
-        return last
+        return False if last is None else last
 
 
 class Number(EquationPiece[Decimal]):
