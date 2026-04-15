@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools >= 82.0.1"]
+requires = ["setuptools >= 82", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -15,8 +15,18 @@ keywords = ['python', 'utils', 'tools', 'utilities']
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Education",
+    "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "Operating System :: MacOS :: MacOS X",
-    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dynamic = ["version"]
+
+[project.urls]
+Repository = "https://github.com/Officer-Erik-1K-88/PyThorn.git"
+Issues = "https://github.com/Officer-Erik-1K-88/PyThorn/issues"
+Changelog = "https://github.com/Officer-Erik-1K-88/PyThorn/blob/master/CHANGELOG.rst"
+
+[tool.setuptools_scm]
+version_file = "pythorn/_version.py"
