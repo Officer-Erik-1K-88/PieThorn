@@ -103,7 +103,7 @@ class Parameters(Sequence[Param]):
     """Provide ordered parameter definitions with name-based lookup helpers."""
 
     def __init__(self, parameters: tuple[Param, ...] | None=None):
-        self._parameters = tuple() if parameters is None else parameters
+        self._parameters: tuple[Param,...] = tuple() if parameters is None else parameters
         self._param_names: dict[str, int] = {}
         # Precompute name-to-index lookup for non-positional parameters.
         i = 0
@@ -420,6 +420,8 @@ class Symbols(Mapping[str, Symbol]):
     def index(self, value: str | Symbol, start: int = 0, stop=None) -> int:
         """Return the ordered position of a symbol."""
         value = str(value)
+        if stop is None:
+            return self._symbol_list.index(value, start)
         return self._symbol_list.index(value, start, stop)
 
     def at(self, index: int) -> Symbol:
@@ -608,9 +610,10 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
     """Store the mutable parsed token tree for an equation expression."""
 
     def __init__(self, parsed_equation: Iterable[EquationPiece]=None):
-        super().__init__(list(parsed_equation))
+        super().__init__([] if parsed_equation is None else list(parsed_equation))
         self._in_sub = False
         self._in_function = False
+        self._parent = None
 
     @property
     def in_sub(self):
@@ -624,7 +627,13 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
     def exit_sub(self):
         """Leave the current sub-expression, if one is active."""
         try:
-            self.get_current()._in_sub = False
+            current = self.get_current()
+            current._in_sub = False
+            if current is not self:
+                if current._parent is not None:
+                    current._parent._in_sub = False
+                else:
+                    self._in_sub = False
         except ChildError:
             self._in_sub = False
 
@@ -635,12 +644,15 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
                 if throw_on_zero:
                     raise ChildError("The parent ParsedEquation is empty")
                 # Lazily create the nested expression container on first access.
-                self._value.append(ParsedEquation())
+                child = ParsedEquation()
+                child._parent = self
+                self._value.append(child)
             last_val = self._value[len(self._value) - 1]
             if not isinstance(last_val, ParsedEquation):
                 if throw_on_not_found:
                     raise ChildError(f"The last value `{last_val}` is not a ParsedEquation")
                 last_val = ParsedEquation()
+                last_val._parent = self
                 self._value.append(last_val)
             if last_val.in_sub:
                 return last_val.get_sub(throw_on_not_found, throw_on_zero)
@@ -654,7 +666,9 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
         if self._in_sub:
             return self.get_sub(sub_tonf, sub_toz)
         if self._in_function:
-            return self.get_function().get_param().get_current(sub_tonf, sub_toz)
+            func = self.get_function()
+            if len(func.parameters) != 0:
+                return func.get_param().get_current(sub_tonf, sub_toz)
         return self
 
     @property
@@ -670,7 +684,22 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
 
     def exit_function(self):
         """Leave the current function-call parsing context."""
-        self.get_current(sub_tonf=True, sub_toz=True)._in_function = False
+        current = self.get_current(sub_tonf=True, sub_toz=True)
+        current._in_function = False
+        if current is not self:
+            if current._parent is not None:
+                current._parent._in_function = False
+            else:
+                self._in_function = False
+        #self.get_function_parent()._in_function = False
+
+    def get_function_parent(self):
+        """Return the ParsedEquation node that owns the active function call."""
+        if self._in_sub:
+            return self.get_sub(True, True).get_function_parent()
+        if self._in_function:
+            return self
+        raise ChildError("Not in a child process")
 
     def get_function(self):
         """Return the active parsed function call."""
@@ -685,7 +714,10 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
 
     def index(self, value, start=0, stop=None):
         """Return the index of ``value`` in the active parse target."""
-        return self.get_current(True, True)._value.index(value, start, stop)
+        curr_value = self.get_current(True, True)._value
+        if stop is None:
+            return curr_value.index(value, start)
+        return curr_value.index(value, start, stop)
 
     def count(self, value):
         """Count ``value`` within the active parse target."""
@@ -693,11 +725,17 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
 
     def insert(self, index: int, value: EquationPiece):
         """Insert a parsed token into the active parse target."""
-        self.get_current(True, True)._value.insert(index, value)
+        current = self.get_current(True, True)
+        if isinstance(value, ParsedEquation):
+            value._parent = current
+        current._value.insert(index, value)
 
     def append(self, value: EquationPiece):
         """Append a parsed token to the active parse target."""
-        self.get_current()._value.append(value)
+        current = self.get_current()
+        if isinstance(value, ParsedEquation):
+            value._parent = current
+        current._value.append(value)
 
     def extend(self, values: Iterable[EquationPiece]):
         """Append multiple parsed tokens to the active parse target."""
@@ -705,6 +743,8 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
         if values is current:
             raise ValueError("Cannot extend because `values` is `current` ParsedEquation")
         for v in values:
+            if isinstance(v, ParsedEquation):
+                v._parent = current
             current._value.append(v)
 
     def reverse(self):
@@ -714,17 +754,27 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
     def clear(self):
         """Clear the active parse target and exit nested parse states."""
         current = self.get_current(True, True)
+        for v in current._value:
+            if isinstance(v, ParsedEquation):
+                v._parent = None
         current._value.clear()
         current._in_function = False
         current._in_sub = False
 
     def pop(self, index: int=-1):
         """Remove and return an item from the active parse target."""
-        return self.get_current(True, True)._value.pop(index)
+        value = self.get_current(True, True)._value.pop(index)
+        if isinstance(value, ParsedEquation):
+            value._parent = None
+        return value
 
     def remove(self, value):
         """Remove the first matching token from the active parse target."""
-        return self.get_current(True, True)._value.remove(value)
+        current = self.get_current(True, True)
+        index = current._value.index(value)
+        v = current._value.pop(index)
+        if isinstance(v, ParsedEquation):
+            v._parent = None
 
     def __iadd__(self, values):
         self.extend(values)
@@ -735,24 +785,43 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
     @overload
     def __getitem__(self, index: slice) -> MutableSequence[EquationPiece]: ...
     def __getitem__(self, index):
-        value = self.get_current(True, True)._value[index]
+        current = self.get_current(True, True)
+        value = current._value[index]
         if isinstance(value, EquationPiece):
             return value
-        return ParsedEquation(value)
+        ret = ParsedEquation(value)
+        ret._parent = current
+        return ret
 
     @overload
     def __setitem__(self, index: int, value: EquationPiece) -> None: ...
     @overload
     def __setitem__(self, index: slice, value: Iterable[EquationPiece]) -> None: ...
     def __setitem__(self, index, value):
-        self.get_current(True, True)._value[index] = value
+        current = self.get_current(True, True)
+        if isinstance(value, ParsedEquation):
+            value._parent = current
+        elif isinstance(value, Iterable):
+            assert isinstance(index, slice)
+            for v in value:
+                if isinstance(v, ParsedEquation):
+                    v._parent = current
+        current._value[index] = value
 
     @overload
     def __delitem__(self, index: int) -> None: ...
     @overload
     def __delitem__(self, index: slice) -> None: ...
     def __delitem__(self, index):
-        del self.get_current(True, True)._value[index]
+        current = self.get_current(True, True)
+        value = current._value[index]
+        if isinstance(value, ParsedEquation):
+            value._parent = None
+        elif isinstance(value, Iterable):
+            for v in value:
+                if isinstance(v, ParsedEquation):
+                    v._parent = None
+        del current._value[index]
 
     def __len__(self):
         try:
@@ -845,7 +914,7 @@ class EquationFunc(EquationPiece[int]):
 
     def add_param(self, param: FuncParam):
         """Append a parsed parameter to this function call."""
-        self._parameters = self._parameters + param
+        self._parameters = self._parameters + (param,)
 
 
 class ParseError(RuntimeError):
@@ -880,14 +949,69 @@ class _EvalParser(CharIterator):
         if not self.next_ended():
             raise ParseError("Ended too Early")
 
+    def _peek_is(self, *chars: str) -> bool:
+        future = self.peek()
+        return future is not None and any(future == char for char in chars)
+
+    def _peek_contiguous(self):
+        next_index = self.pos + 1
+        if next_index < 0 or next_index >= self.char_count():
+            return None
+        future = self._chars[next_index]
+        if future.isspace() or future.is_empty():
+            return None
+        return future
+
+    def _peek_starts_expression(self) -> bool:
+        future = self.peek()
+        if future is None:
+            return False
+        return (
+            future.isdecimal()
+            or future == "."
+            or future == "$"
+            or future == "("
+            or future == "+"
+            or future == "-"
+            or future.isalpha()
+            or future == "_"
+        )
+
+    def _peek_starts_implicit_expression(self) -> bool:
+        future = self.peek()
+        if future is None:
+            return False
+        return (
+            future.isdecimal()
+            or future == "."
+            or future == "$"
+            or future == "("
+            or future.isalpha()
+            or future == "_"
+        )
+
+    def _peek_starts_statement(self) -> bool:
+        future = self.peek()
+        if future is None:
+            return False
+        return future == "!" or self._peek_starts_expression()
+
+    def _assert_no_implicit_expression(self, message: str):
+        if self._peek_starts_implicit_expression():
+            raise SyntaxParseError(message)
+
     def _parse_expression(self):
         # expression := term (("+" | "-") term)*
         self._parse_term()
         while True:
             if self.eat("+"): # Addition
+                if not self._peek_starts_expression():
+                    raise SyntaxParseError("Incomplete expression after '+'")
                 self._parsed.append(Operator("+"))
                 self._parse_term()
             elif self.eat("-"): # Subtraction
+                if not self._peek_starts_expression():
+                    raise SyntaxParseError("Incomplete expression after '-'")
                 self._parsed.append(Operator("-"))
                 self._parse_term()
             else:
@@ -898,9 +1022,13 @@ class _EvalParser(CharIterator):
         self._parse_factor()
         while True:
             if self.eat("*"):  # Multiplication
+                if not self._peek_starts_expression():
+                    raise SyntaxParseError("Incomplete expression after '*'")
                 self._parsed.append(Operator("*"))
                 self._parse_factor()
             elif self.eat("/"):  # Division
+                if not self._peek_starts_expression():
+                    raise SyntaxParseError("Incomplete expression after '/'")
                 self._parsed.append(Operator("/"))
                 self._parse_factor()
             else:
@@ -930,45 +1058,58 @@ class _EvalParser(CharIterator):
             # Variables are delimited as $name$.
             var_name = ""
             while not self.eat("$"):
-                var_name += self.next()
+                var_name += str(self.next())
                 if self.next_ended():
                     raise SyntaxParseError("Missing variable closer: '$'")
             self._parsed.append(Variable(var_name))
         elif self._peek_num_check(): # number
             # Consume a decimal literal as a single Number token.
-            str_val = ""
-            while self._peek_num_check():
-                str_val += self.next()
+            str_val = str(self.next())
+            while True:
+                future = self._peek_contiguous()
+                if future is None or (not future.isdecimal() and future != "."):
+                    break
+                str_val += str(self.next())
             self._parsed.append(Number(Decimal(str_val, self.context)))
         elif self._peek_letter_check(): # function
             # Consume an identifier, then bind and parse its argument list.
-            func = ""
-            while self._peek_letter_check():
-                func += self.next()
+            func = str(self.next())
+            while True:
+                future = self._peek_contiguous()
+                if future is None or (not future.isalnum() and future != "_"):
+                    break
+                func += str(self.next())
             if func in FUNCTIONS:
                 self._parsed.enter_function(func, FUNCTIONS.index(func))
                 func_val = FUNCTIONS.get(func)
-                if func_val.is_value():
+                if not func_val.is_value():
                     self._parse_parameters(func_val.parameters)
                 self._parsed.exit_function()
             else:
                 raise SyntaxParseError(f"Unknown symbol '{func}'")
         else:
             raise SyntaxParseError("Unexpected character: '%s'" % self.peek())
-
-        # TODO: Add logic check to ensure parsing passed
+        self._assert_no_implicit_expression("Missing operator between expressions")
 
 
     def _peek_num_check(self):
-        return self.peek_check(lambda future: future >= "0" or future <= "9" or future == ".")
+        future = self.peek()
+        return future is not None and (future.isdecimal() or future == ".")
 
     def _peek_letter_check(self):
-        return self.peek_check(lambda future: future >= "a" or future <= "z" or future >= "A" or  future <= "Z")
+        future = self.peek()
+        return future is not None and (future.isalpha() or future == "_")
+
+    def _peek_identifier_part_check(self):
+        future = self.peek()
+        return future is not None and (future.isalnum() or future == "_")
 
     def _parse_statement(self):
         # Boolean statements extend the arithmetic grammar with negation,
         # grouping, comparisons, and unions.
         if self.eat("!"):
+            if not self._peek_starts_statement():
+                raise SyntaxParseError("Incomplete statement after '!'")
             self._parsed.append(Operator("!"))
             self._parse_statement()
             return
@@ -981,13 +1122,11 @@ class _EvalParser(CharIterator):
                 raise SyntaxParseError("Missing closing parenthesis: `)`")
         else:
             self._parse_comparison()
-            # TODO: Add logic check to ensure parsing passed and if more needs parsing
 
         if self._needs_union(): # if statement has more union symbols
-            # TODO: Add logic check to see if statement is incomplete
             self._parse_union(False)
-
-        # TODO: Add logic check to ensure parsing passed
+        elif self._peek_starts_statement():
+            raise SyntaxParseError("Missing boolean operator between statements")
 
     def _parse_union(self, inst_state: bool):
         if inst_state:
@@ -995,9 +1134,13 @@ class _EvalParser(CharIterator):
         # Union operators chain boolean statements left-to-right.
         while True:
             if self.eat("&"):
+                if not self._peek_starts_statement():
+                    raise SyntaxParseError("Incomplete union after '&'")
                 self._parsed.append(Operator("&"))
                 self._parse_statement()
             elif self.eat("|"):
+                if not self._peek_starts_statement():
+                    raise SyntaxParseError("Incomplete union after '|'")
                 self._parsed.append(Operator("|"))
                 self._parse_statement()
             else:
@@ -1006,30 +1149,40 @@ class _EvalParser(CharIterator):
     def _parse_comparison(self):
         # Comparisons are built from arithmetic expressions on both sides.
         self._parse_expression()
-        # TODO: Add logic check to see if comparison is possible
+        if not self._needs_compare():
+            raise SyntaxParseError("Missing comparison operator")
 
         while True:
             if self.eat(">"):
                 has_equal = self.eat("=")
+                if not self._peek_starts_expression():
+                    raise SyntaxParseError(f"Incomplete comparison after '>{'=' if has_equal else ''}'")
                 self._parsed.append(Operator(f">{'=' if has_equal else ''}"))
                 self._parse_expression()
             elif self.eat("<"):
                 has_equal = self.eat("=")
+                if not self._peek_starts_expression():
+                    raise SyntaxParseError(f"Incomplete comparison after '<{'=' if has_equal else ''}'")
                 self._parsed.append(Operator(f"<{'=' if has_equal else ''}"))
                 self._parse_expression()
             elif self.eat("="):
                 self.eat("=")
+                if not self._peek_starts_expression():
+                    raise SyntaxParseError("Incomplete comparison after '='")
                 self._parsed.append(Operator("="))
                 self._parse_expression()
             elif self.eat("!"):
                 if self.eat("="):
+                    if not self._peek_starts_expression():
+                        raise SyntaxParseError("Incomplete comparison after '!='")
                     self._parsed.append(Operator("!="))
                     self._parse_expression()
                 else:
                     raise SyntaxParseError("Missing '='")
             else:
                 break
-            # TODO: Add logic check to see if there is more to compare
+            if self._peek_starts_expression():
+                raise SyntaxParseError("Missing comparison operator between expressions")
 
 
     def _needs_union(self):
@@ -1040,10 +1193,13 @@ class _EvalParser(CharIterator):
 
     def _parse_parameters(self, parameters: Parameters):
         if self.eat("("):
-            end = False
+            parsed_count = 0
+            declared = tuple(parameters)
             # Each declared parameter gets its own parse target so nested
             # expressions are captured independently.
-            for parameter in parameters:
+            for index, parameter in enumerate(declared):
+                if self._peek_is(")"):
+                    break
                 self._parsed.get_function().add_param(
                     FuncParam(
                         parameter.name,
@@ -1052,19 +1208,24 @@ class _EvalParser(CharIterator):
                         parameter.default
                     )
                 )
-                if not end:
-                    if parameter.takes_boolean:
-                        self._parse_statement()
-                    else:
-                        self._parse_expression()
-                    if self.eat(")"):
-                        end = True
+                if parameter.takes_boolean:
+                    self._parse_statement()
                 else:
-                    if parameter.required:
-                        if parameter.is_empty():
-                            raise ParseError(f"Parameter `{parameter.name}` is required")
-            if not end:
-                raise SyntaxParseError("Missing closing parenthesis: ')'")
+                    self._parse_expression()
+                parsed_count = index + 1
+                if self.eat(")"):
+                    break
+                if index + 1 >= len(declared):
+                    raise SyntaxParseError("Too many parameters")
+                if not self.eat(","):
+                    raise SyntaxParseError("Missing parameter separator: ','")
+            else:
+                if not self.eat(")"):
+                    raise SyntaxParseError("Missing closing parenthesis: ')'")
+
+            for parameter in declared[parsed_count:]:
+                if parameter.required and parameter.is_empty():
+                    raise ParseError(f"Parameter `{parameter.name}` is required")
         else:
             raise SyntaxParseError("Missing starting parenthesis: '('")
 
