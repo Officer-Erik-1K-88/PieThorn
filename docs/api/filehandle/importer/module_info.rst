@@ -23,3 +23,12 @@ Methods
 
 ``build_submodules()``
    Build only child modules.
+
+Example
+-------
+
+.. code-block:: python
+
+   info = ModuleInfo(package_path)
+   module = info.module
+   info.is_built

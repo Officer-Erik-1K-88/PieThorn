@@ -21,3 +21,15 @@ Inherited helpers
 -----------------
 
 ``get()``, ``is_empty()``, ``new(value)``
+
+Examples
+--------
+
+.. code-block:: python
+
+   from pythorn.math.equation import Parameter
+
+   parameter = Parameter("amount", default=2)
+   parameter.get()          # 2
+   parameter.is_empty()     # False
+   parameter.new(5).value   # 5

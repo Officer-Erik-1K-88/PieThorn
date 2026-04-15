@@ -29,11 +29,33 @@ Methods
 ``load()`` / ``save()``
    Synchronize in-memory data with storage.
 
+   .. code-block:: python
+
+      config.load()
+      config.save()
+
 ``get(key, default=None)`` / ``fast_get(key, default=None)``
    Reloading and non-reloading retrieval helpers.
+
+   .. code-block:: python
+
+      config.get("debug", False)
+      config.fast_get("debug", False)
 
 ``setdefault(key, default=None)``, ``pop(key)``, ``popitem()``, ``clear()``
    Mutate and persist immediately.
 
+   .. code-block:: python
+
+      config.setdefault("theme", "dark")
+      config.pop("theme")
+      config.clear()
+
 ``pathed_as(other)``
    Return whether another ``JSONFile`` points at the same storage location.
+
+Behavior notes
+--------------
+
+When a stored value is a ``dict``, ``get`` and indexed lookup return another
+``JSONFile`` representing that nested object.

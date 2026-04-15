@@ -32,11 +32,31 @@ Key methods
 ``__call__(...)``
    Create and attach a child percent counter.
 
+   .. code-block:: python
+
+      child = parent("child", cap=5, worth=4)
+
 ``larger_percent()``
    Return the percent in the 0-100 range.
+
+   .. code-block:: python
+
+      parent.larger_percent()
 
 ``is_child()``, ``is_parent()``, ``is_complete()``
    Relationship and completion helpers.
 
+   .. code-block:: python
+
+      child.is_child()
+      parent.is_parent()
+      child.is_complete()
+
 ``build_message(...)``, ``check()``, ``reset()``
    Progress and propagation behavior.
+
+Behavior notes
+--------------
+
+When a child completes, its ``worth`` contributes to the parent. If ``worth`` is
+zero, the parent uses its own ``step`` as the contribution amount.

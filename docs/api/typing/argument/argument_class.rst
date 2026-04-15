@@ -15,8 +15,20 @@ Key methods
 ``from_param(param)``
    Build from an ``inspect.Parameter``.
 
+   .. code-block:: python
+
+      import inspect
+
+      param = next(iter(inspect.signature(lambda x: x).parameters.values()))
+      Argument.from_param(param)
+
 ``set_default(default)``, ``set(value, *, key=None)``
    Set the default or current value.
+
+   .. code-block:: python
+
+      arg.set_default(2)
+      arg.set(5)
 
 ``add(value)``, ``remove(key=None)``
    Manage variadic argument storage.
@@ -24,5 +36,15 @@ Key methods
 ``validate(value, throw=True)``
    Type-check a proposed value.
 
+   .. code-block:: python
+
+      arg.validate(3)
+
 ``copy(**kwargs)``
    Clone the definition.
+
+Behavior notes
+--------------
+
+Variadic keyword arguments store their values inside an internal
+``Arguments`` container keyed by the provided ``key`` values.

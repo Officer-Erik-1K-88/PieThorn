@@ -26,11 +26,38 @@ Key methods
 ``build_message(...)`` / ``message_send(...)``
    Message helpers for logger integration.
 
+   .. code-block:: python
+
+      counter.build_message()
+      counter.message_send(return_only=True)
+
 ``add(...)`` / ``float_add(...)``
    Increment helpers.
+
+   .. code-block:: python
+
+      counter.add(2)
+      counter.float_add(1.25, hidden=True)
 
 ``tick_worth(...)`` / ``tick(...)`` / ``non_linear_tick(...)``
    Tick-based progression helpers.
 
+   .. code-block:: python
+
+      counter.tick_worth(2, 1.0, True)
+      counter.tick(2, worth=2)
+      counter.non_linear_tick(2, worth=1)
+
 ``reset()``, ``check()``, ``compare(other)``
    Lifecycle and comparison helpers.
+
+   .. code-block:: python
+
+      counter.compare(10)
+      counter.reset()
+
+Behavior notes
+--------------
+
+``current`` exposes ``visible`` or ``visible + hidden`` depending on the
+``only_visible`` flag, and then adds the decimal portion.

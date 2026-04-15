@@ -31,14 +31,35 @@ Methods
 ``update_children()``
    Refresh the cached child listing.
 
+   .. code-block:: python
+
+      root.update_children()
+      root.children
+
 ``create_child(f, file_content=None)``
    Create a child file or directory.
+
+   .. code-block:: python
+
+      folder = root.create_child("logs")
+      child = root.create_child("logs/app.txt", "booted")
 
 ``exists()``, ``isfile()``, ``isdir()``
    Path-state helpers.
 
+   .. code-block:: python
+
+      child.exists()
+      child.isfile()
+      folder.isdir()
+
 ``build(data=None)``
    Create the underlying path.
+
+   .. code-block:: python
+
+      orphan = File("tmp/example.txt", find_children=False)
+      orphan.build("hello")
 
 ``write(data, line=-1, insert=True, override=False)``
    Append, insert, replace, or override file contents.
@@ -46,5 +67,17 @@ Methods
 ``read(hint=-1)``
    Read lines.
 
+   .. code-block:: python
+
+      lines = child.read()
+
 ``rig(func, mode="r")``
    Open the file and pass the handle into a callback.
+
+Behavior notes
+--------------
+
+``file_path`` is intentionally read-only after construction.
+
+For non-existent paths, ``isfile()`` and ``isdir()`` fall back to a filename
+heuristic based on whether the last path segment contains a dot.
