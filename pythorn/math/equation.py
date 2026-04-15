@@ -4,6 +4,16 @@ from typing import Callable, MutableSequence, overload, Iterable, Sequence, Mapp
 
 from pythorn.collections.char import CharIterator, CharSequence
 
+
+def _decimal_param(name: str, *, default=None, required: bool = False) -> Parameter:
+    """Build a numeric parameter definition for builtin equation functions."""
+    return Parameter(name, default=default, required=required)
+
+
+def _boolean_param(name: str, *, default=None, required: bool = False) -> Parameter:
+    """Build a boolean parameter definition for builtin equation functions."""
+    return Parameter(name, takes_boolean=True, default=default, required=required)
+
 class Param(ABC):
     """Define the interface for named or positional equation parameters."""
 
@@ -329,7 +339,55 @@ class Functions(MutableSequence[Function]):
     def __contains__(self, item):
         return item in self._func_names
 
-FUNCTIONS = Functions()
+
+def _default_functions() -> tuple[Function, ...]:
+    """Return the builtin equation constants and helper functions."""
+    return (
+        Function("pi", value=Decimal("3.1415926535897932384626433832795028841971")),
+        Function("e", value=Decimal("2.7182818284590452353602874713526624977572")),
+        Function(
+            "abs",
+            parameters=Parameters((_decimal_param("value", required=True),)),
+            action=lambda params: abs(params[0].get()),
+        ),
+        Function(
+            "min",
+            parameters=Parameters((
+                _decimal_param("left", required=True),
+                _decimal_param("right", required=True),
+            )),
+            action=lambda params: min(params[0].get(), params[1].get()),
+        ),
+        Function(
+            "max",
+            parameters=Parameters((
+                _decimal_param("left", required=True),
+                _decimal_param("right", required=True),
+            )),
+            action=lambda params: max(params[0].get(), params[1].get()),
+        ),
+        Function(
+            "clamp",
+            parameters=Parameters((
+                _decimal_param("value", required=True),
+                _decimal_param("minimum", required=True),
+                _decimal_param("maximum", required=True),
+            )),
+            action=lambda params: min(max(params[0].get(), params[1].get()), params[2].get()),
+        ),
+        Function(
+            "if",
+            parameters=Parameters((
+                _boolean_param("condition", required=True),
+                _decimal_param("when_true", required=True),
+                _decimal_param("when_false", required=True),
+            )),
+            action=lambda params: params[1].get() if params[0].get() else params[2].get(),
+        ),
+    )
+
+
+FUNCTIONS = Functions(*_default_functions())
 
 
 class EquationPiece[T]:
@@ -727,6 +785,8 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
             return self.get_sub(True, True).get_function_parent()
         if self._in_function:
             return self
+        if self._parent is not None:
+            return self._parent.get_function_parent()
         raise ChildError("Not in a child process")
 
     def get_function(self):
@@ -1228,14 +1288,15 @@ class _EvalParser(CharIterator):
             for index, parameter in enumerate(declared):
                 if self._peek_is(")"):
                     break
-                self._parsed.get_function().add_param(
-                    FuncParam(
-                        parameter.name,
-                        parameter.takes_boolean,
-                        parameter.required,
-                        parameter.default
-                    )
+                current = self._parsed.get_current(sub_tonf=True, sub_toz=True).get_function_parent()
+                param = FuncParam(
+                    parameter.name,
+                    parameter.takes_boolean,
+                    parameter.required,
+                    parameter.default
                 )
+                param._parent = current
+                current.get_function().add_param(param)
                 if parameter.takes_boolean:
                     self._parse_statement()
                 else:

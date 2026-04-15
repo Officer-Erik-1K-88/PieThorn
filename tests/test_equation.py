@@ -24,6 +24,7 @@ from pythorn.math.equation import (
     UNION_SYMBOLS,
     Variable,
     _EvalParser,
+    _default_functions,
 )
 
 
@@ -238,6 +239,18 @@ class FunctionsTests(EquationModuleTestCase):
         with self.assertRaisesRegex(KeyError, "Parameter `missing` not found"):
             functions.get("missing")
 
+    def test_default_functions_include_expected_builtins(self):
+        builtin_names = [func.name for func in _default_functions()]
+        self.assertEqual(
+            builtin_names,
+            ["pi", "e", "abs", "min", "max", "clamp", "if"],
+        )
+
+    def test_module_functions_starts_with_builtin_registry(self):
+        self.assertIn("pi", self._old_functions)
+        self.assertIn("abs", self._old_functions)
+        self.assertIn("if", self._old_functions)
+
 
 class SymbolTests(EquationModuleTestCase):
     def test_symbol_call_compare_and_string(self):
@@ -396,6 +409,26 @@ class FuncParamAndEquationFuncTests(EquationModuleTestCase):
 
 
 class ParserTests(EquationModuleTestCase):
+    def test_parser_supports_builtin_constants_and_functions(self):
+        equation_module.FUNCTIONS = self._old_functions
+        parsed = self.parse_expression("max(abs(-3), clamp(9, 1, 5)) + pi")
+
+        self.assertEqual(parsed[0].name, "max")
+        self.assertEqual(parsed[0].parameters[0][0].name, "abs")
+        self.assertEqual(parsed[0].parameters[1][0].name, "clamp")
+        self.assertEqual(parsed[1].value, "+")
+        self.assertEqual(parsed[2].name, "pi")
+
+    def test_parser_supports_builtin_boolean_function(self):
+        equation_module.FUNCTIONS = self._old_functions
+        parsed = self.parse_expression("if(1 < 2, 10, 20)")
+
+        func = parsed[0]
+        self.assertEqual(func.name, "if")
+        self.assertEqual([piece.value for piece in func.parameters[0]], [Decimal("1"), "<", Decimal("2")])
+        self.assertEqual(func.parameters[1][0].value, Decimal("10"))
+        self.assertEqual(func.parameters[2][0].value, Decimal("20"))
+
     def test_parser_parses_numbers_variables_parentheses_and_unary_operators(self):
         self.install_functions(Function("pi", value=Decimal("3.14")))
         parsed = self.parse_expression("-($name$ + .5) + pi")
