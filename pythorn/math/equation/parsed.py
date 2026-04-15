@@ -4,7 +4,7 @@ from typing import Iterable, MutableSequence, overload
 
 from .functions import FUNCTIONS, Function
 from .parameters import Param, Parameters
-from .tokens import EquationPiece
+from .tokens import EquationPiece, Variable
 from .errors import ChildError
 
 
@@ -13,9 +13,17 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
 
     def __init__(self, parsed_equation: Iterable[EquationPiece]=None):
         super().__init__([] if parsed_equation is None else list(parsed_equation))
+        self._variable_count = 0
+        self._variable_count_default = 0
         self._in_sub = False
         self._in_function = False
-        self._parent = None
+
+    @property
+    def var_count(self):
+        return self._variable_count
+    @property
+    def var_count_default(self):
+        return self._variable_count_default
 
     @property
     def in_sub(self):
@@ -47,15 +55,15 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
                     raise ChildError("The parent ParsedEquation is empty")
                 # Lazily create the nested expression container on first access.
                 child = ParsedEquation()
-                child._parent = self
                 self._value.append(child)
+                self._added(child)
             last_val = self._value[len(self._value) - 1]
             if not isinstance(last_val, ParsedEquation):
                 if throw_on_not_found:
                     raise ChildError(f"The last value `{last_val}` is not a ParsedEquation")
                 last_val = ParsedEquation()
-                last_val._parent = self
                 self._value.append(last_val)
+                self._added(last_val)
             if last_val.in_sub:
                 return last_val.get_sub(throw_on_not_found, throw_on_zero)
             return last_val
@@ -81,7 +89,9 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
     def enter_function(self, name: str, index: int):
         """Begin capturing arguments for the named function."""
         current = self.get_current(sub_tonf=True, sub_toz=True)
-        current._value.append(EquationFunc(index, name))
+        func = EquationFunc(index, name)
+        current._value.append(func)
+        current._added(func)
         current._in_function = True
 
     def exit_function(self):
@@ -127,19 +137,35 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
         """Count ``value`` within the active parse target."""
         return self.get_current(True, True)._value.count(value)
 
+    def _count_variable(self, variable: Variable, rev: bool = False):
+        """Count ``variable`` within the active parse target and it's parents."""
+        self._variable_count += -1 if rev else 1
+        if variable.has_default():
+            self._variable_count_default += -1 if rev else 1
+        if self.has_parent() and isinstance(self._parent, ParsedEquation):
+            self._parent._count_variable(variable)
+
+    def _added(self, value: EquationPiece):
+        value._parent = self
+        if isinstance(value, Variable):
+            self._count_variable(value)
+
+    def _removed(self, value: EquationPiece):
+        value._parent = None
+        if isinstance(value, Variable):
+            self._count_variable(value, True)
+
     def insert(self, index: int, value: EquationPiece):
         """Insert a parsed token into the active parse target."""
         current = self.get_current(True, True)
-        if isinstance(value, ParsedEquation):
-            value._parent = current
         current._value.insert(index, value)
+        current._added(value)
 
     def append(self, value: EquationPiece):
         """Append a parsed token to the active parse target."""
         current = self.get_current()
-        if isinstance(value, ParsedEquation):
-            value._parent = current
         current._value.append(value)
+        current._added(value)
 
     def extend(self, values: Iterable[EquationPiece]):
         """Append multiple parsed tokens to the active parse target."""
@@ -147,9 +173,8 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
         if values is current:
             raise ValueError("Cannot extend because `values` is `current` ParsedEquation")
         for v in values:
-            if isinstance(v, ParsedEquation):
-                v._parent = current
             current._value.append(v)
+            current._added(v)
 
     def reverse(self):
         """Not available on ParsedEquation"""
@@ -159,17 +184,16 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
         """Clear the active parse target and exit nested parse states."""
         current = self.get_current(True, True)
         for v in current._value:
-            if isinstance(v, ParsedEquation):
-                v._parent = None
+            current._removed(v)
         current._value.clear()
         current._in_function = False
         current._in_sub = False
 
     def pop(self, index: int=-1):
         """Remove and return an item from the active parse target."""
-        value = self.get_current(True, True)._value.pop(index)
-        if isinstance(value, ParsedEquation):
-            value._parent = None
+        current = self.get_current(True, True)
+        value = current._value.pop(index)
+        current._removed(value)
         return value
 
     def remove(self, value):
@@ -177,8 +201,7 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
         current = self.get_current(True, True)
         index = current._value.index(value)
         v = current._value.pop(index)
-        if isinstance(v, ParsedEquation):
-            v._parent = None
+        current._removed(v)
 
     def __iadd__(self, values):
         self.extend(values)
@@ -203,13 +226,23 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
     def __setitem__(self, index: slice, value: Iterable[EquationPiece]) -> None: ...
     def __setitem__(self, index, value):
         current = self.get_current(True, True)
-        if isinstance(value, ParsedEquation):
-            value._parent = current
+        if isinstance(value, EquationPiece):
+            assert isinstance(index, int)
+            current._added(value)
         elif isinstance(value, Iterable):
             assert isinstance(index, slice)
             for v in value:
-                if isinstance(v, ParsedEquation):
-                    v._parent = current
+                current._added(v)
+        else:
+            raise TypeError("`value` must be an EquationPiece or Iterable")
+        # noinspection PyTypeChecker
+        old = current._value[index]
+        if isinstance(old, EquationPiece):
+            current._removed(old)
+        elif isinstance(old, Iterable):
+            for v in old:
+                current._removed(v)
+        # noinspection PyTypeChecker
         current._value[index] = value
 
     @overload
@@ -219,12 +252,11 @@ class ParsedEquation(EquationPiece[list[EquationPiece]], MutableSequence[Equatio
     def __delitem__(self, index):
         current = self.get_current(True, True)
         value = current._value[index]
-        if isinstance(value, ParsedEquation):
-            value._parent = None
+        if isinstance(value, EquationPiece):
+            current._removed(value)
         elif isinstance(value, Iterable):
             for v in value:
-                if isinstance(v, ParsedEquation):
-                    v._parent = None
+                current._removed(v)
         del current._value[index]
 
     def __len__(self):

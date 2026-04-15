@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from decimal import Context, Decimal
+from typing import Callable
 
-from pythorn.collections.char import CharIterator, CharSequence
+from pythorn.collections.char import CharIterator, CharSequence, Char
 
 from .errors import ParseError, SyntaxParseError
 from .functions import FUNCTIONS
@@ -35,18 +36,22 @@ class _EvalParser(CharIterator):
         if not self.next_ended():
             raise ParseError("Ended too Early")
 
-    def _peek_is(self, *chars: str) -> bool:
-        future = self.peek()
-        return future is not None and any(future == char for char in chars)
-
-    def _peek_contiguous(self):
-        next_index = self.pos + 1
-        if next_index < 0 or next_index >= self.char_count():
-            return None
-        future = self._chars[next_index]
-        if future.isspace() or future.is_empty():
-            return None
-        return future
+    def _peek_is(self, *chars: str, handler: Callable[[CharSequence | Char], bool] | None=None, space_conscious: bool=False) -> bool:
+        if space_conscious:
+            next_index = self.pos + 1
+            if next_index < 0 or next_index >= self.char_count():
+                return False
+            future = self._chars[next_index]
+        else:
+            future = self.peek()
+        if future is None:
+            return False
+        if space_conscious and (future.isspace() or future.is_empty()):
+            return False
+        if handler is not None:
+            if handler(future):
+                return True
+        return any(future == char for char in chars)
 
     def _peek_starts_expression(self) -> bool:
         future = self.peek()
@@ -142,28 +147,42 @@ class _EvalParser(CharIterator):
                 raise SyntaxParseError("Missing closing parenthesis: ')'")
         elif self.eat("$"):
             # Variables are delimited as $name$.
+            # With optional default value: $name:default$
             var_name = ""
+            in_options = False
+            var_default = None
             while not self.eat("$"):
-                var_name += str(self.next())
+                if self.eat(":"):
+                    # Checks to see if the variable has a default value
+                    if in_options:
+                        raise SyntaxParseError("Invalid Syntax: only one ':' is allowed in var")
+                    in_options = True
+                    continue
+                if in_options:
+                    # Get the variable's default value, if one exists
+                    if var_default is None:
+                        var_default = ""
+                    if not self._peek_num_check(True):
+                        raise SyntaxParseError("Invalid Syntax: Default variable value must be numeric")
+                    var_default += str(self.next())
+                else:
+                    # Get the variable's name
+                    if not self._peek_identifier_part_check(True):
+                        raise SyntaxParseError("Invalid Syntax: Variable name must only contain alpha-numeric characters and '_'")
+                    var_name += str(self.next())
                 if self.next_ended():
                     raise SyntaxParseError("Missing variable closer: '$'")
-            self._parsed.append(Variable(var_name))
-        elif self._peek_num_check(): # number
+            self._parsed.append(Variable(var_name, var_default))
+        elif self._peek_num_check(False): # number
             # Consume a decimal literal as a single Number token.
             str_val = str(self.next())
-            while True:
-                future = self._peek_contiguous()
-                if future is None or (not future.isdecimal() and future != "."):
-                    break
+            while self._peek_num_check(True):
                 str_val += str(self.next())
             self._parsed.append(Number(Decimal(str_val, self.context)))
-        elif self._peek_letter_check(): # function
+        elif self._peek_letter_check(False): # function
             # Consume an identifier, then bind and parse its argument list.
             func = str(self.next())
-            while True:
-                future = self._peek_contiguous()
-                if future is None or (not future.isalnum() and future != "_"):
-                    break
+            while self._peek_letter_check(True):
                 func += str(self.next())
             if func in FUNCTIONS:
                 self._parsed.enter_function(func, FUNCTIONS.name_index(func))
@@ -178,17 +197,14 @@ class _EvalParser(CharIterator):
         self._assert_no_implicit_expression("Missing operator between expressions")
 
 
-    def _peek_num_check(self):
-        future = self.peek()
-        return future is not None and (future.isdecimal() or future == ".")
+    def _peek_num_check(self, space_conscious: bool):
+        return self._peek_is(".", handler=lambda c: c.isdecimal(), space_conscious=space_conscious)
 
-    def _peek_letter_check(self):
-        future = self.peek()
-        return future is not None and (future.isalpha() or future == "_")
+    def _peek_letter_check(self, space_conscious: bool):
+        return self._peek_is("_", handler=lambda c: c.isalpha(), space_conscious=space_conscious)
 
-    def _peek_identifier_part_check(self):
-        future = self.peek()
-        return future is not None and (future.isalnum() or future == "_")
+    def _peek_identifier_part_check(self, space_conscious: bool):
+        return self._peek_is("_", handler=lambda c: c.isalnum(), space_conscious=space_conscious)
 
     def _parse_statement(self):
         # Boolean statements extend the arithmetic grammar with negation,

@@ -11,18 +11,36 @@ class EquationPiece(Generic[T]):
 
     def __init__(self, value: T):
         self._value = value
+        self._parent = None
 
     @property
     def value(self) -> T:
         """Return the wrapped token value."""
         return self._value
 
+    @property
+    def parent(self) -> EquationPiece | None:
+        """Return the parent equation piece."""
+        return self._parent
+
+    def has_parent(self) -> bool:
+        """Return True if the equation piece has a parent."""
+        return self._parent is not None
+
 
 class Variable(EquationPiece[str]):
     """Represent a variable token referenced inside an equation string."""
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, default: str = None):
         super().__init__(name)
+        self._default = default
+
+    @property
+    def default(self):
+        return self._default
+
+    def has_default(self):
+        return self.default is not None
 
 
 class Number(EquationPiece[Decimal]):
