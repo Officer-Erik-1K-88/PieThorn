@@ -113,6 +113,8 @@ Behavior:
 
 * pushing a tag such as ``v0.1.1`` builds the ``piethorn`` distribution and
   publishes it to PyPI
+* successful PyPI publishes also create or update the matching GitHub Release
+  and attach the built distribution files
 * manually running the workflow can publish the selected ref to TestPyPI or
   PyPI
 
@@ -136,3 +138,6 @@ After that setup:
 
 * create and push a ``vX.Y.Z`` tag to publish to PyPI
 * use the manual workflow dispatch to dry-run a build against TestPyPI first
+* when manually publishing to PyPI, set ``ref`` to the release tag such as
+  ``v0.1.0`` if you also want the workflow to create the matching GitHub
+  Release

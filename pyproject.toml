@@ -3,13 +3,14 @@ requires = ["setuptools >= 82", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "PieThorn"
+name = "piethorn"
 description = "This is a library of useful tools for Python."
 readme = "README.rst"
 authors = [
     { name="Officer Erik 1K-88", email="oficer.erik.k@gmail.com" },
 ]
-license = {file = "LICENSE"}
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">= 3.12"
 keywords = ['python', 'utils', 'tools', 'utilities']
 classifiers = [
