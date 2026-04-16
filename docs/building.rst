@@ -102,3 +102,36 @@ Development versions
 Commits after a release tag will automatically build as development versions
 derived from the most recent tag. To keep those versions meaningful, tag every
 public release and avoid rewriting published tags.
+
+GitHub Actions Publishing
+-------------------------
+
+The repository includes a GitHub Actions workflow at
+``.github/workflows/publish.yml``.
+
+Behavior:
+
+* pushing a tag such as ``v0.1.1`` builds the package and publishes it to PyPI
+* manually running the workflow can publish the selected ref to TestPyPI or
+  PyPI
+
+The workflow uses ``setuptools-scm``, so it checks out the full Git history and
+tags before building.
+
+PyPI configuration
+------------------
+
+The workflow is designed for trusted publishing rather than long-lived API
+tokens.
+
+Configure both PyPI and TestPyPI to trust this repository's workflow:
+
+* owner: ``Officer-Erik-1K-88``
+* repository: ``PyThorn``
+* workflow: ``publish.yml``
+* environment: ``pypi`` for PyPI and ``testpypi`` for TestPyPI
+
+After that setup:
+
+* create and push a ``vX.Y.Z`` tag to publish to PyPI
+* use the manual workflow dispatch to dry-run a build against TestPyPI first
