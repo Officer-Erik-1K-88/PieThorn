@@ -32,17 +32,26 @@ Install from PyPI with:
 
    pip install piethorn
 
-Install from the repository root:
+To install from a local checkout, first change into the repository root (the
+directory that contains ``pyproject.toml``), then run:
 
 .. code-block:: bash
 
+   cd /path/to/PyThorn
    pip install .
 
-For editable development work:
+This installs the package from your working tree as a normal, non-editable
+installation.
+
+For development work in the same checkout, use an editable install instead:
 
 .. code-block:: bash
 
+   cd /path/to/PyThorn
    pip install -e .
+
+Editable mode keeps the installed package linked to the repository, so changes
+you make under ``pythorn/`` are picked up without reinstalling after each edit.
 
 Package Overview
 ----------------

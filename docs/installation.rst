@@ -18,17 +18,26 @@ Install the published distribution with:
 Install From Source
 -------------------
 
-From the repository root:
+To install PyThorn from a local clone, run the command from the repository root
+so ``pip`` can read the local ``pyproject.toml``:
 
 .. code-block:: bash
 
+   cd /path/to/PyThorn
    pip install .
 
-For editable development installs:
+This creates a regular installation from the local source tree.
+
+For local development, use an editable install from that same repository root:
 
 .. code-block:: bash
 
+   cd /path/to/PyThorn
    pip install -e .
+
+Editable installs are intended for development work. The installed package
+points at your checkout, so changes under ``pythorn/`` are available without
+running ``pip install`` again after each edit.
 
 Project Layout
 --------------
