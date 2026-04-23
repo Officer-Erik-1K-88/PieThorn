@@ -15,17 +15,6 @@ on:
         required: true
         type: boolean
         default: true
-  workflow_call:
-    inputs:
-      ref:
-        description: "Git ref to build from for manual runs"
-        required: false
-        type: string
-      gitrelease:
-        description: "Whether to release with a GitHub Release."
-        required: true
-        type: boolean
-        default: true
 
 jobs:
   build:
@@ -33,7 +22,7 @@ jobs:
       contents: read
     uses: ./.github/workflows/build.yml
     with:
-      ref: inputs.ref
+      ref: ${{ case(inputs.ref != '', inputs.ref, github.ref) }}
 
   publish-pypi:
     name: Publish To PyPI
@@ -57,9 +46,9 @@ jobs:
   github-release:
     name: Create GitHub Release
     needs: publish-pypi
-    if: ${{ github.event_name == 'push' || (contains(fromJSON('["workflow_dispatch", "workflow_call"]'), github.event_name) && inputs.gitrelease) }}
+    if: ${{ github.event_name == 'push' || (github.event_name=='workflow_dispatch' && inputs.gitrelease) }}
     permissions:
       contents: write
     uses: ./.github/workflows/release.yml
     with:
-      ref: inputs.ref
+      ref: ${{ case(inputs.ref != '', inputs.ref, github.ref) }}
