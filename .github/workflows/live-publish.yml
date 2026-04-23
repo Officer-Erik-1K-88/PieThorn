@@ -1,0 +1,65 @@
+name: Publish Package to PyPi
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build from for manual runs"
+        required: false
+        type: string
+      gitrelease:
+        description: "Whether to release with a GitHub Release."
+        required: true
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to build from for manual runs"
+        required: false
+        type: string
+      gitrelease:
+        description: "Whether to release with a GitHub Release."
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  build:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/build.yml
+    with:
+      ref: inputs.ref
+
+  publish-pypi:
+    name: Publish To PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/piethorn
+    permissions:
+      id-token: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    name: Create GitHub Release
+    needs: publish-pypi
+    if: ${{ github.event_name == 'push' || (contains(fromJSON('["workflow_dispatch", "workflow_call"]'), github.event_name) && inputs.gitrelease) }}
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release.yml
+    with:
+      ref: inputs.ref
