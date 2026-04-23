@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import html
 import io
 import hashlib
 import json
 import os
 from pathlib import Path
+import re
 from typing import Iterable
 import shutil
 import subprocess
@@ -25,6 +27,220 @@ DOC_INPUT_PATHS = (
 )
 
 INJECTED_CONF_MARKER = "# Injected by scripts/build_versioned_docs.py"
+INFO_RENDERED_SUFFIXES = {".rst", ".txt"}
+
+
+def build_site_nav_html(root_prefix: str, current_label: str | None = None) -> str:
+    meta = f'<div class="site-top-nav__meta">Viewing {html.escape(current_label)}</div>' if current_label else ""
+    return f"""<nav class="site-top-nav" aria-label="Site">
+  <div class="site-top-nav__inner">
+    <div class="site-top-nav__brand">PieThorn</div>
+    <div class="site-top-nav__links">
+      <a href="{root_prefix}index.html">Home</a>
+      <a href="{root_prefix}docs/">Docs</a>
+      <a href="{root_prefix}docs/latest/index.html">Latest Docs</a>
+    </div>
+    {meta}
+  </div>
+</nav>"""
+
+
+def build_site_nav_style_block() -> str:
+    return """<style>
+.site-top-nav {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  margin: 0 0 1rem;
+  padding: 0.8rem 1rem;
+  background: rgba(35, 24, 15, 0.94);
+  color: #fffaf2;
+  border-bottom: 1px solid rgba(219, 198, 178, 0.35);
+  box-shadow: 0 0.5rem 1.5rem rgba(35, 24, 15, 0.18);
+}
+.site-top-nav__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8rem 1rem;
+}
+.site-top-nav__brand {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.site-top-nav__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.site-top-nav__links a,
+.site-top-nav__meta {
+  color: #fffaf2;
+}
+.site-top-nav__links a {
+  padding: 0.25rem 0.55rem;
+  border: 1px solid rgba(255, 250, 242, 0.2);
+  border-radius: 999px;
+  text-decoration: none;
+}
+.site-top-nav__links a:hover,
+.site-top-nav__links a:focus {
+  background: rgba(255, 250, 242, 0.12);
+}
+.site-top-nav__meta {
+  margin-left: auto;
+  opacity: 0.85;
+  font-size: 0.95rem;
+}
+.info-page {
+  margin: 0;
+  color: #23180f;
+  background: #f5efe5;
+  font-family: Georgia, "Times New Roman", serif;
+}
+.info-page__content {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+.info-page__content pre {
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+@media (max-width: 40rem) {
+  .site-top-nav__meta {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+</style>"""
+
+
+def wrap_info_html_document(document: str, root_prefix: str, *, title: str = "PieThorn") -> str:
+    safe_title = html.escape(title)
+    nav_html = build_site_nav_html(root_prefix)
+    style_block = build_site_nav_style_block()
+    wrapped = document.strip()
+    lowered = wrapped.lower()
+
+    has_html = "<html" in lowered
+    has_head = "<head" in lowered
+    has_body = "<body" in lowered
+
+    if not has_html:
+        new_wrapped = f"<!DOCTYPE html>\n<html lang=\"en\">\n"
+        if not has_head:
+            new_wrapped += (
+                "<head>\n"
+                "<meta charset=\"utf-8\">\n"
+                "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+                "</head>\n"
+            )
+        if has_head and has_body:
+            new_wrapped += wrapped
+        elif has_head:
+            new_wrapped += f"{wrapped}\n<body>\n</body>"
+        elif has_body:
+            new_wrapped += wrapped
+        else:
+            new_wrapped += f"<body>\n{wrapped}\n</body>"
+        new_wrapped += "\n</html>"
+        wrapped = new_wrapped
+        lowered = wrapped.lower()
+
+    if "<head" not in lowered:
+        wrapped = re.sub(
+            r"(<html[^>]*>)",
+            r"\1\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n</head>",
+            wrapped,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+        lowered = wrapped.lower()
+
+    if "<body" not in lowered:
+        html_close_match = re.search(r"</html>", wrapped, flags=re.IGNORECASE)
+        head_close_match = re.search(r"</head>", wrapped, flags=re.IGNORECASE)
+        if html_close_match and head_close_match:
+            body_inner = wrapped[head_close_match.end():html_close_match.start()].strip()
+            wrapped = (
+                wrapped[:head_close_match.end()]
+                + "\n<body>\n"
+                + body_inner
+                + "\n</body>\n"
+                + wrapped[html_close_match.start():]
+            )
+        elif head_close_match:
+            wrapped = wrapped[:head_close_match.end()] + "\n<body>\n</body>" + wrapped[head_close_match.end():]
+        else:
+            wrapped += "\n<body>\n</body>"
+        lowered = wrapped.lower()
+
+    has_nav = '<nav class="site-top-nav"' in lowered
+    has_nav_style = ".site-top-nav" in wrapped
+
+    if "</head>" in lowered and not has_nav_style:
+        wrapped = re.sub(r"</head>", style_block + "\n</head>", wrapped, count=1, flags=re.IGNORECASE)
+        lowered = wrapped.lower()
+    elif "</head>" not in lowered and not has_nav_style:
+        wrapped = style_block + wrapped
+        lowered = wrapped.lower()
+
+    if "<title" not in lowered and "</head>" in lowered:
+        wrapped = re.sub(r"</head>", f"<title>{safe_title}</title>\n</head>", wrapped, count=1, flags=re.IGNORECASE)
+        lowered = wrapped.lower()
+
+    if "<body" in lowered and not has_nav:
+        if re.search(r"<body[^>]*\bclass=", wrapped, flags=re.IGNORECASE):
+            wrapped = re.sub(
+                r'(<body[^>]*\bclass=")([^"]*)(")',
+                r'\1\2 info-page\3',
+                wrapped,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+        else:
+            wrapped = re.sub(r"(<body)([^>]*>)", r'\1\2 class="info-page">', wrapped, count=1, flags=re.IGNORECASE)
+        wrapped = re.sub(r"(<body[^>]*>)", r"\1\n" + nav_html, wrapped, count=1, flags=re.IGNORECASE)
+    elif "<body" not in lowered and not has_nav:
+        wrapped = nav_html + wrapped
+
+    if "<body" in wrapped.lower() and "info-page" not in wrapped.lower():
+        if re.search(r"<body[^>]*\bclass=", wrapped, flags=re.IGNORECASE):
+            wrapped = re.sub(
+                r'(<body[^>]*\bclass=")([^"]*)(")',
+                r'\1\2 info-page\3',
+                wrapped,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+        else:
+            wrapped = re.sub(r"(<body)([^>]*>)", r'\1\2 class="info-page">', wrapped, count=1, flags=re.IGNORECASE)
+
+    if "<main class=\"info-page__content\">" not in wrapped.lower():
+        if "<body" in wrapped.lower():
+            body_match = re.search(r"<body[^>]*>", wrapped, flags=re.IGNORECASE)
+            if body_match:
+                body_start = body_match.end()
+                body_end_match = re.search(r"</body>", wrapped, flags=re.IGNORECASE)
+                body_end = body_end_match.start() if body_end_match else len(wrapped)
+                body_content = wrapped[body_start:body_end]
+                if nav_html in body_content:
+                    remaining = body_content.replace(nav_html, "", 1).strip()
+                    wrapped = (
+                        wrapped[:body_start]
+                        + "\n"
+                        + nav_html
+                        + "\n<main class=\"info-page__content\">\n"
+                        + remaining
+                        + "\n</main>\n"
+                        + wrapped[body_end:]
+                    )
+        else:
+            wrapped = f"{nav_html}\n<main class=\"info-page__content\">\n{wrapped}\n</main>"
+
+    return wrapped
 
 
 def run_git(repo_root: Path, *args: str) -> str:
@@ -104,6 +320,7 @@ def inject_shared_navigation(repo_root: Path, worktree: Path) -> None:
 
     for relative_path in (
         Path("docs/_static/custom.css"),
+        Path("docs/_static/top-nav.js"),
         Path("docs/_static/version-switcher.js"),
         Path("docs/_templates/versions.html"),
     ):
@@ -133,6 +350,8 @@ if "custom.css" not in html_css_files:
     html_css_files.append("custom.css")
 
 html_js_files = list(globals().get("html_js_files", []))
+if "top-nav.js" not in html_js_files:
+    html_js_files.append("top-nav.js")
 if "version-switcher.js" not in html_js_files:
     html_js_files.append("version-switcher.js")
 
@@ -171,20 +390,41 @@ def iter_info_files(info_dir: Path) -> Iterable[Path]:
 
 def info_output_relative_path(info_dir: Path, source_path: Path) -> Path:
     relative_path = source_path.relative_to(info_dir)
-    if source_path.suffix.lower() in {".rst", ".txt"}:
+    if source_path.suffix.lower() in INFO_RENDERED_SUFFIXES:
         return relative_path.with_suffix(".html")
     return relative_path
 
 
-def render_info_page(source_path: Path, destination: Path) -> None:
-    from docutils.core import publish_file
+def root_prefix_for_output(output_relative_path: Path) -> str:
+    parent = output_relative_path.parent
+    if str(parent) == ".":
+        return ""
+    return "../" * len(parent.parts)
 
+
+def render_rst_info_page(source_path: Path, destination: Path, root_prefix: str) -> None:
+    from docutils.core import publish_parts
+
+    source = source_path.read_text(encoding="utf-8")
+    parts = publish_parts(source=source, writer_name="html5")
+    title = parts.get("title", source_path.stem)
+    body_html = parts.get("body") or parts.get("whole") or ""
     destination.parent.mkdir(parents=True, exist_ok=True)
-    publish_file(
-        source_path=str(source_path),
-        destination_path=str(destination),
-        writer_name="html5",
-    )
+    destination.write_text(wrap_info_html_document(body_html, root_prefix, title=title), encoding="utf-8")
+
+
+def render_plain_text_info_page(source_path: Path, destination: Path, root_prefix: str) -> None:
+    text = html.escape(source_path.read_text(encoding="utf-8"))
+    title = source_path.stem
+    body_html = f"<pre>{text}</pre>"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(wrap_info_html_document(body_html, root_prefix, title=title), encoding="utf-8")
+
+
+def inject_nav_into_html(source_path: Path, destination: Path, root_prefix: str) -> None:
+    document = source_path.read_text(encoding="utf-8")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(wrap_info_html_document(document, root_prefix, title=source_path.stem), encoding="utf-8")
 
 
 def copy_info_site(repo_root: Path, output_dir: Path) -> bool:
@@ -218,8 +458,14 @@ def copy_info_site(repo_root: Path, output_dir: Path) -> bool:
 
     for output_relative_path, source_path in seen_outputs.items():
         destination = output_dir / output_relative_path
-        if source_path.suffix.lower() in {".rst", ".txt"}:
-            render_info_page(source_path, destination)
+        root_prefix = root_prefix_for_output(output_relative_path)
+        suffix = source_path.suffix.lower()
+        if suffix == ".rst":
+            render_rst_info_page(source_path, destination, root_prefix)
+        elif suffix == ".txt":
+            render_plain_text_info_page(source_path, destination, root_prefix)
+        elif suffix == ".html":
+            inject_nav_into_html(source_path, destination, root_prefix)
         else:
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source_path, destination)

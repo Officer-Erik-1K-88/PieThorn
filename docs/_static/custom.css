@@ -1,3 +1,64 @@
+.site-top-nav {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    margin: 0 0 1rem;
+    padding: 0.8rem 1rem;
+    background: rgba(35, 24, 15, 0.94);
+    color: #fffaf2;
+    border-bottom: 1px solid rgba(219, 198, 178, 0.35);
+    box-shadow: 0 0.5rem 1.5rem rgba(35, 24, 15, 0.18);
+}
+
+.site-top-nav__inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.8rem 1rem;
+}
+
+.site-top-nav__brand {
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.site-top-nav__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.site-top-nav__links a,
+.site-top-nav__meta {
+    color: #fffaf2;
+}
+
+.site-top-nav__links a {
+    padding: 0.25rem 0.55rem;
+    border: 1px solid rgba(255, 250, 242, 0.2);
+    border-radius: 999px;
+    text-decoration: none;
+}
+
+.site-top-nav__links a:hover,
+.site-top-nav__links a:focus {
+    background: rgba(255, 250, 242, 0.12);
+}
+
+.site-top-nav__meta {
+    margin-left: auto;
+    opacity: 0.85;
+    font-size: 0.95rem;
+}
+
+@media (max-width: 40rem) {
+    .site-top-nav__meta {
+        width: 100%;
+        margin-left: 0;
+    }
+}
+
 .version-switcher {
     margin-top: 1rem;
 }

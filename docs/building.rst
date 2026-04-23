@@ -137,6 +137,7 @@ Behavior
 * documentation lives under ``/docs/``
 * each tag is published at ``/docs/<tag>/``
 * ``/docs/`` redirects to ``/docs/latest/``
+* every rendered site page gets the shared top navigation bar
 * a version selector in the Sphinx sidebar lets readers switch between tags
 
 Deduplication
@@ -165,8 +166,11 @@ the GitHub Pages site.
 
 Behavior:
 
-* ``.html`` files under ``info/`` are copied to the site root as-is
-* ``.rst`` and ``.txt`` files under ``info/`` are rendered to ``.html`` pages
+* ``.html`` files under ``info/`` are copied to the site root and get the
+  shared top navigation injected
+* ``.rst`` files under ``info/`` are rendered to ``.html`` pages
+* ``.txt`` files under ``info/`` are rendered as plain-text pages inside the
+  shared site chrome
 * ``info/index.html``, ``info/index.rst``, or ``info/index.txt`` can become
   the site homepage
 * ``info/docs`` is reserved and will fail the build because ``/docs/`` is
