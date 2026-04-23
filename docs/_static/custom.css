@@ -1,0 +1,15 @@
+.version-switcher {
+    margin-top: 1rem;
+}
+
+.version-switcher__label {
+    display: block;
+    font-size: 0.85rem;
+    margin-bottom: 0.35rem;
+}
+
+.version-switcher__select {
+    box-sizing: border-box;
+    max-width: 100%;
+    width: 100%;
+}

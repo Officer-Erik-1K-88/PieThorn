@@ -7,7 +7,7 @@ structured for Sphinx.
 Sphinx Configuration
 --------------------
 
-The Sphinx configuration file is [conf.py](/mnt/programming/Libs/Python/PieThorn/docs/conf.py).
+The Sphinx configuration file is [conf.py](/mnt/programming/@data/Libs/Python/PieThorn/docs/conf.py).
 
 It currently enables:
 
@@ -106,8 +106,9 @@ public release and avoid rewriting published tags.
 GitHub Actions Publishing
 -------------------------
 
-The repository includes a GitHub Actions workflow at
-``.github/workflows/publish.yml``.
+The repository includes package publishing workflows under
+``.github/workflows/`` and a GitHub Pages workflow at
+``.github/workflows/docs-pages.yml``.
 
 Behavior:
 
@@ -118,8 +119,39 @@ Behavior:
 * manually running the workflow can publish the selected ref to TestPyPI or
   PyPI
 
-The workflow uses ``setuptools-scm``, so it checks out the full Git history and
-tags before building.
+The package workflows use ``setuptools-scm``, so they check out the full Git
+history and tags before building.
+
+Versioned GitHub Pages
+======================
+
+The docs site is published from Git tags so each release keeps its own URL.
+
+Behavior
+--------
+
+* pushing a ``vX.Y.Z`` tag runs ``.github/workflows/docs-pages.yml``
+* the workflow rebuilds the full docs site for all matching tags
+* each tag is published at ``/<tag>/``
+* the site root redirects to the latest tag
+* a version selector in the Sphinx sidebar lets readers switch between tags
+
+Deduplication
+-------------
+
+The workflow hashes the documentation inputs for each tag:
+
+* ``docs/``
+* ``piethorn/``
+* ``README.rst``
+* ``pyproject.toml``
+* ``setup.py``
+* ``requirements.txt``
+
+If two tags produce the same hash, the workflow builds that documentation tree
+once under ``_builds/<hash>/`` and publishes the tag paths as symbolic links to
+that shared build. This keeps version navigation intact without rebuilding or
+storing duplicate output for unchanged documentation versions.
 
 PyPI configuration
 ------------------
