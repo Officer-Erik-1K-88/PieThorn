@@ -156,20 +156,25 @@ storing duplicate output for unchanged documentation versions.
 PyPI configuration
 ------------------
 
-The workflow is designed for trusted publishing rather than long-lived API
-tokens.
+The publishing workflows are designed for trusted publishing rather than
+long-lived API tokens.
 
-Configure both PyPI and TestPyPI to trust this repository's workflow:
+Configure PyPI and TestPyPI to trust the matching workflow file in this
+repository:
 
 * owner: ``Officer-Erik-1K-88``
 * repository: ``PieThorn``
-* workflow: ``publish.yml``
-* environment: ``pypi`` for PyPI and ``testpypi`` for TestPyPI
+* workflow: ``.github/workflows/live-publish.yml`` with environment ``pypi``
+* workflow: ``.github/workflows/test-publish.yml`` with environment ``testpypi``
 
 After that setup:
 
-* create and push a ``vX.Y.Z`` tag to publish to PyPI
-* use the manual workflow dispatch to dry-run a build against TestPyPI first
-* when manually publishing to PyPI, set ``ref`` to the release tag such as
-  ``v0.1.0`` if you also want the workflow to create the matching GitHub
-  Release
+* create and push a ``vX.Y.Z`` tag to run ``live-publish.yml`` and publish to
+  PyPI
+* create and push a ``vX.Y.Z-test`` tag to run ``test-publish.yml`` and
+  publish to TestPyPI
+* use the ``test-publish.yml`` manual workflow dispatch to dry-run a build
+  against TestPyPI for any selected ref
+* use the ``live-publish.yml`` manual workflow dispatch to publish a selected
+  ref to PyPI, and set ``gitrelease`` if you also want the matching GitHub
+  Release created after the PyPI publish succeeds
