@@ -1,0 +1,16 @@
+exclude .codex
+exclude .gitignore
+
+prune .github
+prune .idea
+prune .venv
+prune dist
+prune docs/_build
+prune piethorn.egg-info
+prune scripts
+
+exclude piethorn/math/equation.py.old
+
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *.so
