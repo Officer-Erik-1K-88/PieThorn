@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from typing import Iterable
 import shutil
 import subprocess
 import sys
@@ -160,6 +161,70 @@ def make_relative_symlink(target: Path, link_path: Path) -> None:
 
     relative_target = os.path.relpath(target, link_path.parent)
     link_path.symlink_to(relative_target, target_is_directory=True)
+
+
+def iter_info_files(info_dir: Path) -> Iterable[Path]:
+    for path in sorted(info_dir.rglob("*")):
+        if path.is_file():
+            yield path
+
+
+def info_output_relative_path(info_dir: Path, source_path: Path) -> Path:
+    relative_path = source_path.relative_to(info_dir)
+    if source_path.suffix.lower() in {".rst", ".txt"}:
+        return relative_path.with_suffix(".html")
+    return relative_path
+
+
+def render_info_page(source_path: Path, destination: Path) -> None:
+    from docutils.core import publish_file
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    publish_file(
+        source_path=str(source_path),
+        destination_path=str(destination),
+        writer_name="html5",
+    )
+
+
+def copy_info_site(repo_root: Path, output_dir: Path) -> bool:
+    info_dir = repo_root / "info"
+    if not info_dir.exists():
+        return False
+
+    if not info_dir.is_dir():
+        raise NotADirectoryError(f"{info_dir} exists but is not a directory.")
+
+    reserved_paths = {"docs"}
+    seen_outputs: dict[Path, Path] = {}
+
+    for source_path in iter_info_files(info_dir):
+        relative_path = source_path.relative_to(info_dir)
+        if relative_path.parts and relative_path.parts[0] in reserved_paths:
+            raise ValueError(
+                f"info/{relative_path.as_posix()} conflicts with a reserved Pages path; "
+                "place documentation-independent site files outside info/docs."
+            )
+
+        output_relative_path = info_output_relative_path(info_dir, source_path)
+        previous_source = seen_outputs.get(output_relative_path)
+        if previous_source is not None:
+            raise ValueError(
+                "Multiple info/ files map to the same output path: "
+                f"{previous_source.relative_to(info_dir).as_posix()} and "
+                f"{relative_path.as_posix()} -> {output_relative_path.as_posix()}"
+            )
+        seen_outputs[output_relative_path] = source_path
+
+    for output_relative_path, source_path in seen_outputs.items():
+        destination = output_dir / output_relative_path
+        if source_path.suffix.lower() in {".rst", ".txt"}:
+            render_info_page(source_path, destination)
+        else:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source_path, destination)
+
+    return True
 
 
 def write_homepage(output_dir: Path, latest: str) -> None:
@@ -395,7 +460,8 @@ def build_versioned_site(repo_root: Path, output_dir: Path) -> None:
 
             make_relative_symlink(canonical_builds[digest], docs_dir / version)
 
-    write_homepage(output_dir, versions[-1])
+    if not copy_info_site(repo_root, output_dir):
+        write_homepage(output_dir, versions[-1])
     write_docs_site_files(docs_dir, versions, digests_by_version)
 
 

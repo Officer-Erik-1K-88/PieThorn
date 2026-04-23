@@ -132,7 +132,8 @@ Behavior
 
 * pushing a ``vX.Y.Z`` tag runs ``.github/workflows/docs-pages.yml``
 * the workflow rebuilds the full docs site for all matching tags
-* the GitHub Pages site root is a standalone homepage
+* if ``info/`` exists, its contents become the GitHub Pages site root
+* if ``info/`` does not exist, the workflow generates a fallback homepage
 * documentation lives under ``/docs/``
 * each tag is published at ``/docs/<tag>/``
 * ``/docs/`` redirects to ``/docs/latest/``
@@ -155,6 +156,23 @@ once under ``_builds/<hash>/`` and publishes the tag paths as symbolic links to
 that shared build. This keeps version navigation intact without rebuilding or
 storing duplicate output for unchanged documentation versions. The ``latest``
 alias is also published under ``/docs/latest/``.
+
+Info Site Content
+-----------------
+
+The optional ``info/`` directory is treated as the non-documentation portion of
+the GitHub Pages site.
+
+Behavior:
+
+* ``.html`` files under ``info/`` are copied to the site root as-is
+* ``.rst`` and ``.txt`` files under ``info/`` are rendered to ``.html`` pages
+* ``info/index.html``, ``info/index.rst``, or ``info/index.txt`` can become
+  the site homepage
+* ``info/docs`` is reserved and will fail the build because ``/docs/`` is
+  managed by the versioned documentation publisher
+* conflicting source files such as ``info/about.rst`` and ``info/about.html``
+  will fail the build because they target the same output path
 
 PyPI configuration
 ------------------
