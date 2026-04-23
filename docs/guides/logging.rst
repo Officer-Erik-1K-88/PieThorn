@@ -1,7 +1,7 @@
 Logging Guide
 =============
 
-The ``pythorn.logging`` package is intentionally small: it provides a logger and
+The ``piethorn.logging`` package is intentionally small: it provides a logger and
 two families of counters for tracking work.
 
 Logger

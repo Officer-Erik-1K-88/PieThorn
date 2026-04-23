@@ -1,7 +1,7 @@
 Analyze.Argument Wrapper
 ========================
 
-.. py:class:: pythorn.typing.analyze.Argument(parameter)
+.. py:class:: piethorn.typing.analyze.Argument(parameter)
 
 Purpose
 -------

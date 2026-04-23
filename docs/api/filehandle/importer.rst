@@ -1,7 +1,7 @@
 Importer Module
 ===============
 
-Module: :mod:`pythorn.filehandle.importer`
+Module: :mod:`piethorn.filehandle.importer`
 
 Overview
 --------
@@ -144,6 +144,6 @@ module loading, and runtime wrappers around package trees.
 Autodoc
 -------
 
-.. automodule:: pythorn.filehandle.importer
+.. automodule:: piethorn.filehandle.importer
    :members:
    :undoc-members:

@@ -1,7 +1,7 @@
 Converter Module
 ================
 
-Module: :mod:`pythorn.math.converter`
+Module: :mod:`piethorn.math.converter`
 
 Overview
 --------
@@ -38,7 +38,7 @@ helper conversions for large magnitudes and text-to-digit obfuscation.
 
    .. code-block:: python
 
-      from pythorn.math.converter import convert_to_words
+      from piethorn.math.converter import convert_to_words
 
       convert_to_words(0)      # "Zero"
       convert_to_words(12.5)   # "Twelve and Five Tenth"
@@ -78,6 +78,6 @@ helper conversions for large magnitudes and text-to-digit obfuscation.
 Autodoc
 -------
 
-.. automodule:: pythorn.math.converter
+.. automodule:: piethorn.math.converter
    :members:
    :undoc-members:

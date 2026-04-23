@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Context, Decimal
 from typing import Callable
 
-from pythorn.collections.char import CharIterator, CharSequence, Char
+from piethorn.collections.char import CharIterator, CharSequence, Char
 
 from .errors import ParseError, SyntaxParseError
 from .functions import FUNCTIONS

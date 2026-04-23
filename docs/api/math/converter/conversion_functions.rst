@@ -2,7 +2,7 @@ Conversion Functions
 ====================
 
 This page groups the number-word conversion functions from
-:mod:`pythorn.math.converter`.
+:mod:`piethorn.math.converter`.
 
 ``find_number_name(exponent)``
    Return the scale name for an exponent.

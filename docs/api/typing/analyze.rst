@@ -1,7 +1,7 @@
 Analyze Module
 ==============
 
-Module: :mod:`pythorn.typing.analyze`
+Module: :mod:`piethorn.typing.analyze`
 
 Overview
 --------
@@ -82,7 +82,7 @@ and other Python objects.
 
    .. code-block:: python
 
-      from pythorn.typing.analyze import analyze
+      from piethorn.typing.analyze import analyze
 
       def sample(a, /, b: int, *args, c=3, **kwargs) -> str:
           return "ok"
@@ -95,6 +95,6 @@ and other Python objects.
 Autodoc
 -------
 
-.. automodule:: pythorn.typing.analyze
+.. automodule:: piethorn.typing.analyze
    :members:
    :undoc-members:

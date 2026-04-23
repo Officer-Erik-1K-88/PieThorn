@@ -1,12 +1,12 @@
 Typing Guide
 ============
 
-The ``pythorn.typing`` package contains two related but separate tools.
+The ``piethorn.typing`` package contains two related but separate tools.
 
 Runtime Argument Containers
 ---------------------------
 
-``pythorn.typing.argument`` defines:
+``piethorn.typing.argument`` defines:
 
 ``ArgumentKind``
    A normalized enum over the ``inspect.Parameter`` kinds.
@@ -27,14 +27,14 @@ This module is useful when you need:
 Inspection Helpers
 ------------------
 
-``pythorn.typing.analyze`` wraps the standard library ``inspect`` module and
+``piethorn.typing.analyze`` wraps the standard library ``inspect`` module and
 returns structured metadata.
 
 ``analyze(obj)``
    Returns an ``Info`` object.
 
 ``Info.arguments``
-   Returns an :class:`Arguments <pythorn.typing.analyze.Arguments>` sequence that
+   Returns an :class:`Arguments <piethorn.typing.analyze.Arguments>` sequence that
    classifies positional-only, positional-or-keyword, and keyword-only
    parameters.
 
@@ -45,7 +45,7 @@ returns structured metadata.
 When To Choose Which Module
 ---------------------------
 
-Use ``pythorn.typing.argument`` when you need to define or store argument data.
+Use ``piethorn.typing.argument`` when you need to define or store argument data.
 
-Use ``pythorn.typing.analyze`` when you need to inspect an existing callable or
+Use ``piethorn.typing.analyze`` when you need to inspect an existing callable or
 object and ask structural questions about it.

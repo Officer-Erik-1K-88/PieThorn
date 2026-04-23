@@ -20,7 +20,7 @@ Example
 
 .. code-block:: python
 
-   from pythorn.math import LogicGates
+   from piethorn.math import LogicGates
 
    gates = LogicGates()
    gates.and_gate([True, 1, True])

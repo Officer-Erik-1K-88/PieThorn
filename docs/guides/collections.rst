@@ -1,7 +1,7 @@
 Collections Guide
 =================
 
-The ``pythorn.collections`` package is a set of small focused data structures.
+The ``piethorn.collections`` package is a set of small focused data structures.
 
 Character Helpers
 -----------------
@@ -12,7 +12,7 @@ Character Helpers
 
 ``CharSequence``
    Normalizes an iterable of characters into an immutable tuple of
-   :class:`~pythorn.collections.char.Char` objects. Multi-character strings are
+   :class:`~piethorn.collections.char.Char` objects. Multi-character strings are
    flattened automatically.
 
 ``CharIterator``
@@ -56,7 +56,7 @@ existing sequence without copying it.
 Slice Composition Helpers
 -------------------------
 
-The :mod:`pythorn.collections.range` module focuses on composing slices.
+The :mod:`piethorn.collections.range` module focuses on composing slices.
 
 ``combine_slices()``
    Produces an exact composed slice when the original sequence length is known.

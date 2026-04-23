@@ -20,7 +20,7 @@ Examples
 
 .. code-block:: python
 
-   from pythorn.collections.mapping import Map
+   from piethorn.collections.mapping import Map
 
    mapping = Map(["a", "b"], [1, 2])
    mapping["a"] = 3

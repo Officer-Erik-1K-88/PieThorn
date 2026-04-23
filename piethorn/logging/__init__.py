@@ -1,4 +1,4 @@
-from pythorn.logging.logger import Logger
+from piethorn.logging.logger import Logger
 
 __all__ = ["logger", "counter", "LOGGER"]
 

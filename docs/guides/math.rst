@@ -1,11 +1,11 @@
 Math Guide
 ==========
 
-The ``pythorn.math`` package has three main areas:
+The ``piethorn.math`` package has three main areas:
 
-* boolean helpers and skewed random generation in ``pythorn.math``
-* number-word conversion in ``pythorn.math.converter``
-* decimal equation parsing and evaluation in ``pythorn.math.equation``
+* boolean helpers and skewed random generation in ``piethorn.math``
+* number-word conversion in ``piethorn.math.converter``
+* decimal equation parsing and evaluation in ``piethorn.math.equation``
 
 Logic Helpers
 -------------
@@ -93,5 +93,5 @@ Timing Helpers
 --------------
 
 The converter timing helpers provide formatting and UTC conversion utilities for
-durations and timestamps. See :mod:`pythorn.math.converter.timing` in the API
+durations and timestamps. See :mod:`piethorn.math.converter.timing` in the API
 reference for the exact entry points.

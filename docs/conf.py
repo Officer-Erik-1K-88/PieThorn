@@ -1,4 +1,4 @@
-project = "PyThorn"
+project = "PieThorn"
 author = "Officer Erik 1K-88"
 
 extensions = [

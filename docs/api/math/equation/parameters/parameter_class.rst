@@ -27,7 +27,7 @@ Examples
 
 .. code-block:: python
 
-   from pythorn.math.equation import Parameter
+   from piethorn.math.equation import Parameter
 
    parameter = Parameter("amount", default=2)
    parameter.get()          # 2

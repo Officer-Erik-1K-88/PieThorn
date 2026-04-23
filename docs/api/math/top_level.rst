@@ -1,7 +1,7 @@
 Top-Level Math Module
 =====================
 
-Module: :mod:`pythorn.math`
+Module: :mod:`piethorn.math`
 
 Overview
 --------
@@ -27,7 +27,7 @@ number generator.
 
    .. code-block:: python
 
-      from pythorn.math import LogicGates
+      from piethorn.math import LogicGates
 
       gates = LogicGates()
       gates.and_gate([True, 1, True])
@@ -54,13 +54,13 @@ number generator.
 
    .. code-block:: python
 
-      from pythorn.math import skew
+      from piethorn.math import skew
 
       skew(skew_at=0.4, weight=0.2, minimum=10, maximum=20, is_int=True)
 
 Autodoc
 -------
 
-.. automodule:: pythorn.math
+.. automodule:: piethorn.math
    :members:
    :undoc-members:

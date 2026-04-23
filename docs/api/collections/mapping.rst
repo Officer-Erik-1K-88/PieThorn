@@ -1,7 +1,7 @@
 Mapping Module
 ==============
 
-Module: :mod:`pythorn.collections.mapping`
+Module: :mod:`piethorn.collections.mapping`
 
 Overview
 --------
@@ -44,7 +44,7 @@ This module provides:
 
    .. code-block:: python
 
-      from pythorn.collections.mapping import Map
+      from piethorn.collections.mapping import Map
 
       mapping = Map(["a", "b"], [1, 2])
       mapping["a"] = 3
@@ -86,6 +86,6 @@ This module provides:
 Autodoc
 -------
 
-.. automodule:: pythorn.collections.mapping
+.. automodule:: piethorn.collections.mapping
    :members:
    :undoc-members:

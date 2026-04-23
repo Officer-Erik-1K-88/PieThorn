@@ -2,7 +2,7 @@ from abc import abstractmethod, ABC
 from decimal import Decimal, Context
 from typing import Callable, MutableSequence, overload, Iterable, Sequence, Mapping, Iterator, TypeAlias
 
-from pythorn.collections.char import CharIterator, CharSequence
+from piethorn.collections.char import CharIterator, CharSequence
 
 
 def _decimal_param(name: str, *, default=None, required: bool = False) -> Parameter:

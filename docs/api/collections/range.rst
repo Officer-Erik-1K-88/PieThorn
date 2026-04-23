@@ -1,7 +1,7 @@
 Range Helpers Module
 ====================
 
-Module: :mod:`pythorn.collections.range`
+Module: :mod:`piethorn.collections.range`
 
 Overview
 --------
@@ -18,7 +18,7 @@ This module focuses on composing and analyzing Python slices.
 
    .. code-block:: python
 
-      from pythorn.collections.range import combine_slices
+      from piethorn.collections.range import combine_slices
 
       combine_slices(slice(2, 10, 2), slice(1, 3), 20)
       # slice(4, 8, 2)
@@ -64,7 +64,7 @@ This module focuses on composing and analyzing Python slices.
 
    .. code-block:: python
 
-      from pythorn.collections.range import adhoc_combine_slices
+      from piethorn.collections.range import adhoc_combine_slices
 
       exact = adhoc_combine_slices(slice(None, None, 2), slice(1, 4))
       exact.slice
@@ -80,7 +80,7 @@ This module focuses on composing and analyzing Python slices.
 
    .. code-block:: python
 
-      from pythorn.collections.range import is_full_slice, slice_len
+      from piethorn.collections.range import is_full_slice, slice_len
 
       is_full_slice(slice(None, None))
       slice_len(slice(1, 8, 2), 10)
@@ -88,6 +88,6 @@ This module focuses on composing and analyzing Python slices.
 Autodoc
 -------
 
-.. automodule:: pythorn.collections.range
+.. automodule:: piethorn.collections.range
    :members:
    :undoc-members:

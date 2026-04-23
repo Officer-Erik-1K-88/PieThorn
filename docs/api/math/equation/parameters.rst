@@ -1,7 +1,7 @@
 Equation Parameters
 ===================
 
-Module: :mod:`pythorn.math.equation.parameters`
+Module: :mod:`piethorn.math.equation.parameters`
 
 .. toctree::
    :maxdepth: 1
@@ -40,7 +40,7 @@ Module: :mod:`pythorn.math.equation.parameters`
 
    .. code-block:: python
 
-      from pythorn.math.equation import Parameter
+      from piethorn.math.equation import Parameter
 
       p = Parameter("amount", default=2, value=5)
       p.get()  # 5
@@ -70,6 +70,6 @@ Module: :mod:`pythorn.math.equation.parameters`
 Autodoc
 -------
 
-.. automodule:: pythorn.math.equation.parameters
+.. automodule:: piethorn.math.equation.parameters
    :members:
    :undoc-members:

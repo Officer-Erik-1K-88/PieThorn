@@ -2,7 +2,7 @@ Path Helper Functions
 =====================
 
 This page groups the project-root aware helper functions in
-:mod:`pythorn.filehandle.importer`.
+:mod:`piethorn.filehandle.importer`.
 
 ``with_caller_context(...)``
    Decorator that injects caller and project-root context.

@@ -25,9 +25,9 @@ classifiers = [
 dynamic = ["version"]
 
 [project.urls]
-Repository = "https://github.com/Officer-Erik-1K-88/PyThorn.git"
-Issues = "https://github.com/Officer-Erik-1K-88/PyThorn/issues"
-Changelog = "https://github.com/Officer-Erik-1K-88/PyThorn/blob/master/CHANGELOG.rst"
+Repository = "https://github.com/Officer-Erik-1K-88/PieThorn.git"
+Issues = "https://github.com/Officer-Erik-1K-88/PieThorn/issues"
+Changelog = "https://github.com/Officer-Erik-1K-88/PieThorn/blob/master/CHANGELOG.rst"
 
 [tool.setuptools_scm]
-version_file = "pythorn/_version.py"
+version_file = "piethorn/_version.py"

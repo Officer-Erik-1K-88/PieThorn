@@ -1,7 +1,7 @@
-PyThorn
+PieThorn
 =======
 
-PyThorn is a Python utility library that collects several small but reusable
+PieThorn is a Python utility library that collects several small but reusable
 tools under one package. It currently includes:
 
 * collection helpers such as character wrappers, ordered mappings, slice
@@ -15,7 +15,7 @@ tools under one package. It currently includes:
 Project Status
 --------------
 
-PyThorn is currently marked as alpha-quality software. The public behavior
+PieThorn is currently marked as alpha-quality software. The public behavior
 described here is based on the current implementation and test suite.
 
 Requirements
@@ -37,7 +37,7 @@ directory that contains ``pyproject.toml``), then run:
 
 .. code-block:: bash
 
-   cd /path/to/PyThorn
+   cd /path/to/PieThorn
    pip install .
 
 This installs the package from your working tree as a normal, non-editable
@@ -47,32 +47,32 @@ For development work in the same checkout, use an editable install instead:
 
 .. code-block:: bash
 
-   cd /path/to/PyThorn
+   cd /path/to/PieThorn
    pip install -e .
 
 Editable mode keeps the installed package linked to the repository, so changes
-you make under ``pythorn/`` are picked up without reinstalling after each edit.
+you make under ``piethorn/`` are picked up without reinstalling after each edit.
 
 Package Overview
 ----------------
 
-``pythorn.collections``
+``piethorn.collections``
    Character-oriented types, ordered mappings, slice-composition helpers, and
    immutable views over existing sequences and mappings.
 
-``pythorn.filehandle``
+``piethorn.filehandle``
    Filesystem wrappers for building and editing files, JSON persistence helpers,
    and importer utilities for project-relative path and module resolution.
 
-``pythorn.logging``
+``piethorn.logging``
    A simple logger plus counter types for progress reporting and parent-child
    percentage tracking.
 
-``pythorn.math``
+``piethorn.math``
    Logic gate helpers, skewed random values, numeric word conversion, timing
    formatting, and an equation parser/evaluator based on ``decimal.Decimal``.
 
-``pythorn.typing``
+``piethorn.typing``
    Runtime argument-definition containers and ``inspect``-based callable
    analysis helpers.
 
@@ -84,9 +84,9 @@ Collections
 
 .. code-block:: python
 
-   from pythorn.collections.char import CharSequence
-   from pythorn.collections.mapping import Map
-   from pythorn.collections.views import SequenceView
+   from piethorn.collections.char import CharSequence
+   from piethorn.collections.mapping import Map
+   from piethorn.collections.views import SequenceView
 
    sequence = CharSequence(["ab", " ", "C"])
    mapping = Map(["left", "right"], [1, 2])
@@ -102,7 +102,7 @@ Equation Evaluation
 .. code-block:: python
 
    from decimal import Context
-   from pythorn.math.equation import Equation
+   from piethorn.math.equation import Equation
 
    eq = Equation("$value$ + $fallback:2$", Context())
    assert eq.calculate({"value": 3}) == 5
@@ -112,7 +112,7 @@ Logging And Progress
 
 .. code-block:: python
 
-   from pythorn.logging.logger import Logger
+   from piethorn.logging.logger import Logger
 
    logger = Logger(debug_level=1)
    logger.info("starting")
@@ -126,7 +126,7 @@ File Utilities
 
 .. code-block:: python
 
-   from pythorn.filehandle.filehandling import File
+   from piethorn.filehandle.filehandling import File
 
    root = File("tmp_project", find_children=False)
    child = root.create_child("data/example.txt", "hello")
@@ -137,7 +137,7 @@ Typing Utilities
 
 .. code-block:: python
 
-   from pythorn.typing.analyze import analyze
+   from piethorn.typing.analyze import analyze
 
    def sample(a, /, b: int, *args, c=3, **kwargs) -> str:
        return "ok"
@@ -164,14 +164,14 @@ If Sphinx is available in your environment, a typical HTML build looks like:
 Repository Layout
 -----------------
 
-* ``pythorn/`` contains the package implementation
+* ``piethorn/`` contains the package implementation
 * ``tests/`` contains the unit tests
 * ``docs/`` contains the reStructuredText documentation tree
 * ``pyproject.toml`` defines the build metadata
 
-Why PyThorn
+Why PieThorn
 -----------
 
-PyThorn is useful when you want a small grab-bag library of utilities that are
+PieThorn is useful when you want a small grab-bag library of utilities that are
 more structured than ad-hoc snippets but lighter than pulling in many separate
 packages for simple tasks.

@@ -1,7 +1,7 @@
 Timing Module
 =============
 
-Module: :mod:`pythorn.math.converter.timing`
+Module: :mod:`piethorn.math.converter.timing`
 
 Overview
 --------
@@ -25,7 +25,7 @@ package's UTC string representation.
 
    .. code-block:: python
 
-      from pythorn.math.converter.timing import format_time
+      from piethorn.math.converter.timing import format_time
 
       format_time(2024, 1, 2, 3, 4, 5, 6, 7, 8, "UTC")
 
@@ -51,6 +51,6 @@ package's UTC string representation.
 Autodoc
 -------
 
-.. automodule:: pythorn.math.converter.timing
+.. automodule:: piethorn.math.converter.timing
    :members:
    :undoc-members:

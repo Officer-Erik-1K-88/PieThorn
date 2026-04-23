@@ -4,13 +4,13 @@ Quickstart
 Collections
 -----------
 
-PyThorn includes a few collection helpers that wrap low-level Python patterns:
+PieThorn includes a few collection helpers that wrap low-level Python patterns:
 
 .. code-block:: python
 
-   from pythorn.collections.char import CharSequence
-   from pythorn.collections.mapping import Map
-   from pythorn.collections.views import SequenceView
+   from piethorn.collections.char import CharSequence
+   from piethorn.collections.mapping import Map
+   from piethorn.collections.views import SequenceView
 
    text = CharSequence(["ab", " ", "C"])
    mapping = Map(["left", "right"], [1, 2])
@@ -29,7 +29,7 @@ them with :class:`decimal.Decimal` semantics:
 .. code-block:: python
 
    from decimal import Context
-   from pythorn.math.equation import Equation
+   from piethorn.math.equation import Equation
 
    ctx = Context()
    eq = Equation("$value$ + $fallback:2$", ctx)
@@ -43,7 +43,7 @@ The logging package combines output helpers with counters:
 
 .. code-block:: python
 
-   from pythorn.logging.logger import Logger
+   from piethorn.logging.logger import Logger
 
    logger = Logger(debug_level=1)
    logger.info("starting")
@@ -59,7 +59,7 @@ The file wrapper can build paths relative to a root object:
 
 .. code-block:: python
 
-   from pythorn.filehandle.filehandling import File
+   from piethorn.filehandle.filehandling import File
 
    root = File("tmp_project", find_children=False)
    child = root.create_child("data/example.txt", "hello")
@@ -68,13 +68,13 @@ The file wrapper can build paths relative to a root object:
 Typing Utilities
 ----------------
 
-Use ``pythorn.typing.argument`` when you need a runtime container for typed
-arguments, and ``pythorn.typing.analyze`` when you need structured data from
+Use ``piethorn.typing.argument`` when you need a runtime container for typed
+arguments, and ``piethorn.typing.analyze`` when you need structured data from
 ``inspect.signature``:
 
 .. code-block:: python
 
-   from pythorn.typing.analyze import analyze
+   from piethorn.typing.analyze import analyze
 
    def sample(a, /, b: int, *args, c=3, **kwargs) -> str:
        return "ok"

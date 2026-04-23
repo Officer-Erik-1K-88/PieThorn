@@ -13,7 +13,7 @@ Example
 
 .. code-block:: python
 
-   from pythorn.collections.views import MapView
+   from piethorn.collections.views import MapView
 
    view = MapView({"left": 1, "right": 2})
    view["left"]

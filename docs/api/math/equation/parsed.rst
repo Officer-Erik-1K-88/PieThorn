@@ -1,7 +1,7 @@
 Parsed Equation Structures
 ==========================
 
-Module: :mod:`pythorn.math.equation.parsed`
+Module: :mod:`piethorn.math.equation.parsed`
 
 Overview
 --------
@@ -74,6 +74,6 @@ These classes represent the mutable token tree produced during parsing.
 Autodoc
 -------
 
-.. automodule:: pythorn.math.equation.parsed
+.. automodule:: piethorn.math.equation.parsed
    :members:
    :undoc-members:

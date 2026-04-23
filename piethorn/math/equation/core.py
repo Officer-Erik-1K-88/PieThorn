@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Context, Decimal, localcontext
 from typing import Mapping
 
-from pythorn.collections.char import CharSequence
+from piethorn.collections.char import CharSequence
 
 from .functions import FUNCTIONS, _DecimalValid
 from .parameters import Parameter, Parameters

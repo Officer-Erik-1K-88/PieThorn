@@ -13,7 +13,7 @@ Workflow example
 
 .. code-block:: python
 
-   from pythorn.filehandle.filehandling import File
+   from piethorn.filehandle.filehandling import File
 
    root = File("workspace", find_children=False)
    child = root.create_child("data/example.txt", "hello")

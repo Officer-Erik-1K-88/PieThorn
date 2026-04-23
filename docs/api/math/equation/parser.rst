@@ -1,14 +1,14 @@
 Equation Parser
 ===============
 
-Module: :mod:`pythorn.math.equation.parser`
+Module: :mod:`piethorn.math.equation.parser`
 
 ``EvalParser``
 --------------
 
 .. py:class:: EvalParser(chars, context)
 
-   Streaming parser used by :class:`pythorn.math.equation.core.Equation`.
+   Streaming parser used by :class:`piethorn.math.equation.core.Equation`.
 
    Example
    ~~~~~~~
@@ -16,8 +16,8 @@ Module: :mod:`pythorn.math.equation.parser`
    .. code-block:: python
 
       from decimal import Context
-      from pythorn.collections.char import CharSequence
-      from pythorn.math.equation import EvalParser
+      from piethorn.collections.char import CharSequence
+      from piethorn.math.equation import EvalParser
 
       parser = EvalParser(CharSequence("1 + 2"), Context())
       parser.parse()
@@ -46,6 +46,6 @@ Module: :mod:`pythorn.math.equation.parser`
 Autodoc
 -------
 
-.. automodule:: pythorn.math.equation.parser
+.. automodule:: piethorn.math.equation.parser
    :members:
    :undoc-members:

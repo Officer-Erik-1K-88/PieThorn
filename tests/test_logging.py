@@ -1,8 +1,8 @@
 import io
 import unittest
 
-from pythorn.logging.counter import Counter, CounterBehavior, Percent
-from pythorn.logging.logger import Logger
+from piethorn.logging.counter import Counter, CounterBehavior, Percent
+from piethorn.logging.logger import Logger
 
 
 class LoggerTests(unittest.TestCase):

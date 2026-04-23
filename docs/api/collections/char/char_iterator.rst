@@ -14,7 +14,7 @@ Typical workflow
 
 .. code-block:: python
 
-   from pythorn.collections.char import CharIterator
+   from piethorn.collections.char import CharIterator
 
    iterator = CharIterator(["", " ", "a", "b"], skip_space=True, skip_empty=True)
    iterator.peek()

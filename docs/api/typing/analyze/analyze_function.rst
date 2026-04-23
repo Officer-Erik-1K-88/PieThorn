@@ -13,7 +13,7 @@ Example
 
 .. code-block:: python
 
-   from pythorn.typing.analyze import analyze
+   from piethorn.typing.analyze import analyze
 
    def sample(a, /, b: int, *args, c=3, **kwargs) -> str:
        return "ok"

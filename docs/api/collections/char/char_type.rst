@@ -25,7 +25,7 @@ Examples
 
 .. code-block:: python
 
-   from pythorn.collections.char import Char
+   from piethorn.collections.char import Char
 
    Char(Char("A")).ord() == 65
    Char(65).char() == "A"

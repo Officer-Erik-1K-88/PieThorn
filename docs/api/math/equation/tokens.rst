@@ -1,7 +1,7 @@
 Equation Tokens
 ===============
 
-Module: :mod:`pythorn.math.equation.tokens`
+Module: :mod:`piethorn.math.equation.tokens`
 
 .. toctree::
    :maxdepth: 1
@@ -45,6 +45,6 @@ Module: :mod:`pythorn.math.equation.tokens`
 Autodoc
 -------
 
-.. automodule:: pythorn.math.equation.tokens
+.. automodule:: piethorn.math.equation.tokens
    :members:
    :undoc-members:

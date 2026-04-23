@@ -1,7 +1,7 @@
 Equation Functions
 ==================
 
-Module: :mod:`pythorn.math.equation.functions`
+Module: :mod:`piethorn.math.equation.functions`
 
 .. toctree::
    :maxdepth: 1
@@ -27,7 +27,7 @@ Module: :mod:`pythorn.math.equation.functions`
 
    .. code-block:: python
 
-      from pythorn.math.equation import Function, Parameter, Parameters
+      from piethorn.math.equation import Function, Parameter, Parameters
 
       func = Function(
           "sum",
@@ -81,6 +81,6 @@ Default registry containing the built-in equation constants and helpers.
 Autodoc
 -------
 
-.. automodule:: pythorn.math.equation.functions
+.. automodule:: piethorn.math.equation.functions
    :members:
    :undoc-members:

@@ -14,7 +14,7 @@ Examples
 
 .. code-block:: python
 
-   from pythorn.collections.views import SequenceView
+   from piethorn.collections.views import SequenceView
 
    view = SequenceView([1, 2, 3, 4], reverse=True, cut=slice(1, 4))
    nested = view[1:]

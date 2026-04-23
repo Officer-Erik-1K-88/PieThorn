@@ -17,7 +17,7 @@ Key methods
    .. code-block:: python
 
       from decimal import Decimal
-      from pythorn.math.equation import Operator
+      from piethorn.math.equation import Operator
 
       Operator("+").calculate(Decimal("1"), Decimal("2"))
 

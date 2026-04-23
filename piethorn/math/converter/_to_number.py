@@ -1,8 +1,8 @@
 from decimal import Decimal, InvalidOperation
 from typing import Callable, Iterable, Mapping, Any, List, Tuple
 
-from pythorn.math.converter._cache import FOUND_EXPONENTS, NUMBER_VALUES
-from pythorn.math.converter._handle import _exponent10, _to_plain_string
+from piethorn.math.converter._cache import FOUND_EXPONENTS, NUMBER_VALUES
+from piethorn.math.converter._handle import _exponent10, _to_plain_string
 
 
 def convert_to_number(number_words: str) -> Decimal:

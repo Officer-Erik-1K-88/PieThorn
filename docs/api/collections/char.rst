@@ -1,7 +1,7 @@
 Character Module
 ================
 
-Module: :mod:`pythorn.collections.char`
+Module: :mod:`piethorn.collections.char`
 
 Overview
 --------
@@ -38,7 +38,7 @@ This module provides three related types:
 
    .. code-block:: python
 
-      from pythorn.collections.char import Char
+      from piethorn.collections.char import Char
 
       Char("A").ord() == 65
       Char(65).char() == "A"
@@ -87,7 +87,7 @@ This module provides three related types:
 
    .. code-block:: python
 
-      from pythorn.collections.char import CharSequence
+      from piethorn.collections.char import CharSequence
 
       seq = CharSequence(["ab", " ", "C"])
       str(seq) == "ab C"
@@ -143,7 +143,7 @@ This module provides three related types:
 
    .. code-block:: python
 
-      from pythorn.collections.char import CharIterator
+      from piethorn.collections.char import CharIterator
 
       it = CharIterator(["", " ", "a", "b"], skip_space=True, skip_empty=True)
       assert it.peek() == "a"
@@ -177,6 +177,6 @@ This module provides three related types:
 Autodoc
 -------
 
-.. automodule:: pythorn.collections.char
+.. automodule:: piethorn.collections.char
    :members:
    :undoc-members:

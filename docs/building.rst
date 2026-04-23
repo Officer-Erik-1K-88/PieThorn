@@ -7,7 +7,7 @@ structured for Sphinx.
 Sphinx Configuration
 --------------------
 
-The Sphinx configuration file is [conf.py](/mnt/programming/Libs/Python/PyThorn/docs/conf.py).
+The Sphinx configuration file is [conf.py](/mnt/programming/Libs/Python/PieThorn/docs/conf.py).
 
 It currently enables:
 
@@ -69,7 +69,7 @@ Create the release tag on the commit you want to publish:
 
 .. code-block:: bash
 
-   git tag -a v0.1.0 -m "PyThorn 0.1.0"
+   git tag -a v0.1.0 -m "PieThorn 0.1.0"
 
 Then verify what version ``setuptools-scm`` resolved:
 
@@ -130,7 +130,7 @@ tokens.
 Configure both PyPI and TestPyPI to trust this repository's workflow:
 
 * owner: ``Officer-Erik-1K-88``
-* repository: ``PyThorn``
+* repository: ``PieThorn``
 * workflow: ``publish.yml``
 * environment: ``pypi`` for PyPI and ``testpypi`` for TestPyPI
 

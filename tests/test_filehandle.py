@@ -3,8 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pythorn.filehandle.filehandling import File, JSONEncoder
-from pythorn.filehandle.importer import (
+from piethorn.filehandle.filehandling import File, JSONEncoder
+from piethorn.filehandle.importer import (
     CallerRoot,
     ModuleInfo,
     change_source_dir,

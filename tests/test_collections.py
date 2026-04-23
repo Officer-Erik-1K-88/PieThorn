@@ -1,9 +1,9 @@
 import unittest
 from decimal import Decimal
 
-from pythorn.collections.char import Char, CharIterator, CharSequence
-from pythorn.collections.mapping import Map
-from pythorn.collections.range import (
+from piethorn.collections.char import Char, CharIterator, CharSequence
+from piethorn.collections.mapping import Map
+from piethorn.collections.range import (
     SliceComposeResult,
     SliceMode,
     adhoc_combine_slices,
@@ -11,7 +11,7 @@ from pythorn.collections.range import (
     is_full_slice,
     slice_len,
 )
-from pythorn.collections.views import MapView, SequenceView
+from piethorn.collections.views import MapView, SequenceView
 
 
 class CharTests(unittest.TestCase):

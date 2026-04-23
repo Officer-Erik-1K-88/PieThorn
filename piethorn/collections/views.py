@@ -1,6 +1,6 @@
 from typing import Mapping, Iterator, Sequence, Optional
 
-from pythorn.collections.range import slice_len
+from piethorn.collections.range import slice_len
 
 
 class SequenceView[T](Sequence[T]):

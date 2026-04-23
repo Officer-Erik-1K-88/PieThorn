@@ -1,9 +1,9 @@
 import unittest
 from decimal import Context, Decimal
 
-from pythorn.collections.char import CharSequence
-from pythorn.math import equation as equation_module
-from pythorn.math.equation import (
+from piethorn.collections.char import CharSequence
+from piethorn.math import equation as equation_module
+from piethorn.math.equation import (
     ChildError,
     COMPARISON_SYMBOLS,
     Equation,

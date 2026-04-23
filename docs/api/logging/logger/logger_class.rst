@@ -14,7 +14,7 @@ Examples
 
 .. code-block:: python
 
-   from pythorn.logging.logger import Logger
+   from piethorn.logging.logger import Logger
 
    logger = Logger(debug_level=1)
    logger.info("hello")

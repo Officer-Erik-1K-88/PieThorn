@@ -1,7 +1,7 @@
 Equation Errors
 ===============
 
-Module: :mod:`pythorn.math.equation.errors`
+Module: :mod:`piethorn.math.equation.errors`
 
 This module defines the main exception types raised by the equation parser and
 parse-tree helpers.
@@ -24,5 +24,5 @@ Raised when a requested child parse scope does not exist.
 Autodoc
 -------
 
-.. automodule:: pythorn.math.equation.errors
+.. automodule:: piethorn.math.equation.errors
    :members:

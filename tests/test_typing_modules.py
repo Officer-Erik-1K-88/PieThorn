@@ -1,9 +1,9 @@
 import inspect
 import unittest
 
-from pythorn.typing.argument import Argument as TypedArgument
-from pythorn.typing.argument import ArgumentKind, Arguments as TypedArguments
-from pythorn.typing.analyze import Argument, Arguments, analyze
+from piethorn.typing.argument import Argument as TypedArgument
+from piethorn.typing.argument import ArgumentKind, Arguments as TypedArguments
+from piethorn.typing.analyze import Argument, Arguments, analyze
 
 
 def sample_signature(a, /, b: int, *args, c=3, **kwargs) -> str:

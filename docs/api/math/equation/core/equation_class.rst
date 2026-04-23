@@ -15,7 +15,7 @@ Example
 .. code-block:: python
 
    from decimal import Context
-   from pythorn.math.equation import Equation
+   from piethorn.math.equation import Equation
 
    equation = Equation("$value$ + $fallback:2$", Context())
    equation.calculate({"value": 3})

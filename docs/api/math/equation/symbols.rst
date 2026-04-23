@@ -1,7 +1,7 @@
 Equation Symbols
 ================
 
-Module: :mod:`pythorn.math.equation.symbols`
+Module: :mod:`piethorn.math.equation.symbols`
 
 Overview
 --------
@@ -74,6 +74,6 @@ Grouped symbol collections
 Autodoc
 -------
 
-.. automodule:: pythorn.math.equation.symbols
+.. automodule:: piethorn.math.equation.symbols
    :members:
    :undoc-members:

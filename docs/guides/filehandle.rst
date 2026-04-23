@@ -1,11 +1,11 @@
 Filehandle Guide
 ================
 
-The ``pythorn.filehandle`` package contains two distinct toolsets:
+The ``piethorn.filehandle`` package contains two distinct toolsets:
 
-* a filesystem wrapper centered on :class:`pythorn.filehandle.filehandling.File`
+* a filesystem wrapper centered on :class:`piethorn.filehandle.filehandling.File`
 * import and path discovery helpers centered on
-  :class:`pythorn.filehandle.importer.CallerRoot`
+  :class:`piethorn.filehandle.importer.CallerRoot`
 
 Working With ``File``
 ---------------------

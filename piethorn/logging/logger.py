@@ -6,7 +6,7 @@ class Logger:
     """Print tagged log messages while tracking log counters by severity."""
 
     def __init__(self, debug_level=0):
-        from pythorn.logging.counter import Counter
+        from piethorn.logging.counter import Counter
         self.debug_level = debug_level
         self.log_count = Counter("log")
         self.errors = Counter("error")
@@ -103,10 +103,10 @@ class Logger:
 
     def percent(self, name: str, current: float=0, cap: int=100, step: float=1):
         """Create a ``Percent`` counter bound to this logger."""
-        from pythorn.logging.counter import Percent
+        from piethorn.logging.counter import Percent
         return Percent(name, current, cap, step, self)
 
     def count(self, name: str, step: float=1):
         """Create a ``Counter`` bound to this logger."""
-        from pythorn.logging.counter import Counter
+        from piethorn.logging.counter import Counter
         return Counter(name, step=step, logger=self)

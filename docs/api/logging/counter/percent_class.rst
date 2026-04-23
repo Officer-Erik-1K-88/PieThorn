@@ -14,7 +14,7 @@ Examples
 
 .. code-block:: python
 
-   from pythorn.logging.counter import Percent
+   from piethorn.logging.counter import Percent
 
    parent = Percent("task", current=10, cap=20, step=5)
    child = parent("child", cap=5, worth=4)

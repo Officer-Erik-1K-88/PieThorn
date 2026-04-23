@@ -1,7 +1,7 @@
 from decimal import Decimal
 from typing import Dict, List
 
-from pythorn.collections.mapping import Pair
+from piethorn.collections.mapping import Pair
 from ._consonant import Consonant
 from ._prefix import NumPrefix, NumPrefixDict
 

@@ -14,7 +14,7 @@ Example
 
 .. code-block:: python
 
-   from pythorn.filehandle.filehandling import JSONFile
+   from piethorn.filehandle.filehandling import JSONFile
 
    config = JSONFile("config.json")
    config["debug"] = True

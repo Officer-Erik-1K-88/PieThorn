@@ -1,7 +1,7 @@
 Filehandling Module
 ===================
 
-Module: :mod:`pythorn.filehandle.filehandling`
+Module: :mod:`piethorn.filehandle.filehandling`
 
 Overview
 --------
@@ -32,7 +32,7 @@ This module groups together path wrappers and JSON persistence helpers.
 
    .. code-block:: python
 
-      from pythorn.filehandle.filehandling import File
+      from piethorn.filehandle.filehandling import File
 
       root = File("workspace", find_children=False)
       folder = root.create_child("data")
@@ -109,7 +109,7 @@ This module groups together path wrappers and JSON persistence helpers.
 
    .. code-block:: python
 
-      from pythorn.filehandle.filehandling import JSONEncoder
+      from piethorn.filehandle.filehandling import JSONEncoder
 
       JSONEncoder(sort_keys=True).dumps({"b": [1], "a": {"c": 2}})
 
@@ -132,7 +132,7 @@ This module groups together path wrappers and JSON persistence helpers.
 
    .. code-block:: python
 
-      from pythorn.filehandle.filehandling import JSONFile
+      from piethorn.filehandle.filehandling import JSONFile
 
       config = JSONFile("config.json")
       config["debug"] = True
@@ -171,6 +171,6 @@ This module groups together path wrappers and JSON persistence helpers.
 Autodoc
 -------
 
-.. automodule:: pythorn.filehandle.filehandling
+.. automodule:: piethorn.filehandle.filehandling
    :members:
    :undoc-members:

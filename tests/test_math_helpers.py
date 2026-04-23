@@ -3,15 +3,15 @@ import unittest
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from pythorn.math import LogicGates, skew
-from pythorn.math.converter import (
+from piethorn.math import LogicGates, skew
+from piethorn.math.converter import (
     convert_partial_word,
     convert_to_big,
     convert_to_number,
     convert_to_words,
     letter_to_number,
 )
-from pythorn.math.converter.timing import convert_seconds, convert_to_utc, format_time
+from piethorn.math.converter.timing import convert_seconds, convert_to_utc, format_time
 
 
 class LogicAndRandomTests(unittest.TestCase):

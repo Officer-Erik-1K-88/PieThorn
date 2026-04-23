@@ -1,7 +1,7 @@
 Views Module
 ============
 
-Module: :mod:`pythorn.collections.views`
+Module: :mod:`piethorn.collections.views`
 
 Overview
 --------
@@ -41,7 +41,7 @@ This module provides read-only wrappers over sequences and mappings.
 
    .. code-block:: python
 
-      from pythorn.collections.views import SequenceView
+      from piethorn.collections.views import SequenceView
 
       view = SequenceView([1, 2, 3, 4], reverse=True, cut=slice(1, 4))
       nested = view[1:]
@@ -71,7 +71,7 @@ This module provides read-only wrappers over sequences and mappings.
 
    .. code-block:: python
 
-      from pythorn.collections.views import MapView
+      from piethorn.collections.views import MapView
 
       view = MapView({"left": 1, "right": 2})
       view["left"]         # 1
@@ -80,6 +80,6 @@ This module provides read-only wrappers over sequences and mappings.
 Autodoc
 -------
 
-.. automodule:: pythorn.collections.views
+.. automodule:: piethorn.collections.views
    :members:
    :undoc-members:

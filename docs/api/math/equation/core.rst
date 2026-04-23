@@ -1,7 +1,7 @@
 Equation Core
 =============
 
-Module: :mod:`pythorn.math.equation.core`
+Module: :mod:`piethorn.math.equation.core`
 
 ``Equation``
 ------------
@@ -16,7 +16,7 @@ Module: :mod:`pythorn.math.equation.core`
    .. code-block:: python
 
       from decimal import Context
-      from pythorn.math.equation import Equation
+      from piethorn.math.equation import Equation
 
       eq = Equation("$value$ + $fallback:2$", Context())
       eq.calculate({"value": 3})  # Decimal("5")
@@ -48,6 +48,6 @@ Module: :mod:`pythorn.math.equation.core`
 Autodoc
 -------
 
-.. automodule:: pythorn.math.equation.core
+.. automodule:: piethorn.math.equation.core
    :members:
    :undoc-members:

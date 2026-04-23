@@ -21,7 +21,7 @@ Examples
 
 .. code-block:: python
 
-   from pythorn.collections.char import CharSequence
+   from piethorn.collections.char import CharSequence
 
    sequence = CharSequence(["ab", " ", "C"])
    str(sequence) == "ab C"

@@ -1,7 +1,7 @@
 Logger Module
 =============
 
-Module: :mod:`pythorn.logging.logger`
+Module: :mod:`piethorn.logging.logger`
 
 Overview
 --------
@@ -26,7 +26,7 @@ message counters and factory methods for progress counters.
 
    .. code-block:: python
 
-      from pythorn.logging.logger import Logger
+      from piethorn.logging.logger import Logger
 
       logger = Logger(debug_level=1)
       logger.info("hello")
@@ -61,12 +61,12 @@ message counters and factory methods for progress counters.
       Print a separator line.
 
    ``percent(name, current=0, cap=100, step=1)`` and ``count(name, step=1)``
-      Factory helpers for :class:`pythorn.logging.counter.Percent` and
-      :class:`pythorn.logging.counter.Counter`.
+      Factory helpers for :class:`piethorn.logging.counter.Percent` and
+      :class:`piethorn.logging.counter.Counter`.
 
 Autodoc
 -------
 
-.. automodule:: pythorn.logging.logger
+.. automodule:: piethorn.logging.logger
    :members:
    :undoc-members:

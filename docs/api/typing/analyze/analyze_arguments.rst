@@ -1,7 +1,7 @@
 Analyze.Arguments Wrapper
 =========================
 
-.. py:class:: pythorn.typing.analyze.Arguments(iterable=None)
+.. py:class:: piethorn.typing.analyze.Arguments(iterable=None)
 
 Purpose
 -------

@@ -37,7 +37,7 @@ Typical example
 
 .. code-block:: python
 
-   from pythorn.math.equation import Parameter, Parameters
+   from piethorn.math.equation import Parameter, Parameters
 
    declared = Parameters((
        Parameter("", required=True),

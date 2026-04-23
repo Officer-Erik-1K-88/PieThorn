@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/PyThorn.iml" filepath="$PROJECT_DIR$/.idea/PyThorn.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/PieThorn.iml" filepath="$PROJECT_DIR$/.idea/PieThorn.iml" />
     </modules>
   </component>
 </project>

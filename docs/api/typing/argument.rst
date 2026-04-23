@@ -1,7 +1,7 @@
 Runtime Argument Module
 =======================
 
-Module: :mod:`pythorn.typing.argument`
+Module: :mod:`piethorn.typing.argument`
 
 Overview
 --------
@@ -44,7 +44,7 @@ validated argument values.
 
    .. code-block:: python
 
-      from pythorn.typing.argument import Argument, ArgumentKind
+      from piethorn.typing.argument import Argument, ArgumentKind
 
       positional = Argument("count", int, default=1)
       variadic_kwargs = Argument("options", int, kind=ArgumentKind.VAR_KEYWORD)
@@ -85,7 +85,7 @@ validated argument values.
 
    .. code-block:: python
 
-      from pythorn.typing.argument import Argument, Arguments
+      from piethorn.typing.argument import Argument, Arguments
 
       arguments = Arguments(Argument("count", int, default=1), strict_keys=False)
       arguments.set("name", "erik")
@@ -121,6 +121,6 @@ validated argument values.
 Autodoc
 -------
 
-.. automodule:: pythorn.typing.argument
+.. automodule:: piethorn.typing.argument
    :members:
    :undoc-members:

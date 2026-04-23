@@ -1,7 +1,7 @@
-PyThorn Documentation
+PieThorn Documentation
 =====================
 
-PyThorn is a utility library that groups together several reusable Python
+PieThorn is a utility library that groups together several reusable Python
 helpers:
 
 * collection primitives such as character wrappers, mapping helpers, and
@@ -45,30 +45,30 @@ full documentation site.
 Highlights
 ----------
 
-``pythorn.collections``
+``piethorn.collections``
    Character-oriented data structures, an ordered mutable mapping, slice
    composition helpers, and immutable views over sequences and mappings.
 
-``pythorn.filehandle``
+``piethorn.filehandle``
    Filesystem wrappers for creating and editing files, plus helpers for
    resolving import paths relative to a detected project root.
 
-``pythorn.logging``
+``piethorn.logging``
    A simple logger with counter objects that can track progress and optionally
    emit messages through the logger.
 
-``pythorn.math``
+``piethorn.math``
    Boolean gate utilities, skewed random generation, numeric word conversion,
    timing formatters, and a decimal-based equation parser/evaluator.
 
-``pythorn.typing``
+``piethorn.typing``
    Utilities for describing runtime arguments and inspecting callable
    signatures in a structured way.
 
 Project Status
 --------------
 
-The project metadata currently marks PyThorn as alpha-quality software. The
+The project metadata currently marks PieThorn as alpha-quality software. The
 test suite is the most reliable source for expected behavior, and the guides in
 this documentation are based on the package implementation and those tests.
 

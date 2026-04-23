@@ -1,7 +1,7 @@
 Counter Module
 ==============
 
-Module: :mod:`pythorn.logging.counter`
+Module: :mod:`piethorn.logging.counter`
 
 Overview
 --------
@@ -48,7 +48,7 @@ logging package.
 
    .. code-block:: python
 
-      from pythorn.logging.counter import Counter
+      from piethorn.logging.counter import Counter
 
       counter = Counter("jobs", visible=1, hidden=2, only_visible=False, step=0.5)
       counter.add(2)
@@ -117,7 +117,7 @@ logging package.
 
    .. code-block:: python
 
-      from pythorn.logging.counter import Percent
+      from piethorn.logging.counter import Percent
 
       parent = Percent("task", current=10, cap=20, step=5)
       child = parent("child", cap=5, worth=4)
@@ -158,6 +158,6 @@ logging package.
 Autodoc
 -------
 
-.. automodule:: pythorn.logging.counter
+.. automodule:: piethorn.logging.counter
    :members:
    :undoc-members:

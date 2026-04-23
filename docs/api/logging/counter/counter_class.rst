@@ -13,7 +13,7 @@ Examples
 
 .. code-block:: python
 
-   from pythorn.logging.counter import Counter
+   from piethorn.logging.counter import Counter
 
    counter = Counter("jobs", visible=1, hidden=2, only_visible=False, step=0.5)
    counter.add(2)

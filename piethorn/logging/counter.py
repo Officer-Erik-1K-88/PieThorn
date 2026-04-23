@@ -1,9 +1,9 @@
 import math
 from typing import Optional, Iterable, Sequence, Collection, Literal, Any
 
-from pythorn.collections.views import SequenceView
+from piethorn.collections.views import SequenceView
 
-from pythorn.logging.logger import Logger
+from piethorn.logging.logger import Logger
 
 
 class CounterBehavior:
