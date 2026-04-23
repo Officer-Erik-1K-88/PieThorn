@@ -132,8 +132,10 @@ Behavior
 
 * pushing a ``vX.Y.Z`` tag runs ``.github/workflows/docs-pages.yml``
 * the workflow rebuilds the full docs site for all matching tags
-* each tag is published at ``/<tag>/``
-* the site root redirects to the latest tag
+* the GitHub Pages site root is a standalone homepage
+* documentation lives under ``/docs/``
+* each tag is published at ``/docs/<tag>/``
+* ``/docs/`` redirects to ``/docs/latest/``
 * a version selector in the Sphinx sidebar lets readers switch between tags
 
 Deduplication
@@ -151,7 +153,8 @@ The workflow hashes the documentation inputs for each tag:
 If two tags produce the same hash, the workflow builds that documentation tree
 once under ``_builds/<hash>/`` and publishes the tag paths as symbolic links to
 that shared build. This keeps version navigation intact without rebuilding or
-storing duplicate output for unchanged documentation versions.
+storing duplicate output for unchanged documentation versions. The ``latest``
+alias is also published under ``/docs/latest/``.
 
 PyPI configuration
 ------------------

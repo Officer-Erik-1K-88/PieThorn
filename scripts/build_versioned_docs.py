@@ -162,30 +162,192 @@ def make_relative_symlink(target: Path, link_path: Path) -> None:
     link_path.symlink_to(relative_target, target_is_directory=True)
 
 
-def write_site_files(output_dir: Path, versions: list[str], digests: dict[str, str]) -> None:
+def write_homepage(output_dir: Path, latest: str) -> None:
+    index_html = f"""<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PieThorn</title>
+    <style>
+      :root {{
+        color-scheme: light;
+        --bg: #f5efe5;
+        --surface: #fffaf2;
+        --ink: #23180f;
+        --muted: #6a5645;
+        --accent: #9c3d10;
+        --accent-2: #d97b2d;
+        --border: #dbc6b2;
+      }}
+
+      * {{
+        box-sizing: border-box;
+      }}
+
+      body {{
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        background:
+          radial-gradient(circle at top left, rgba(217, 123, 45, 0.18), transparent 32rem),
+          linear-gradient(180deg, #f9f2e7 0%, var(--bg) 100%);
+        color: var(--ink);
+      }}
+
+      main {{
+        max-width: 64rem;
+        margin: 0 auto;
+        padding: 4rem 1.5rem 5rem;
+      }}
+
+      .hero {{
+        display: grid;
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+      }}
+
+      .eyebrow {{
+        margin: 0;
+        color: var(--accent);
+        font-size: 0.9rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }}
+
+      h1 {{
+        margin: 0;
+        font-size: clamp(2.6rem, 8vw, 5rem);
+        line-height: 0.95;
+      }}
+
+      .lede {{
+        margin: 0;
+        max-width: 42rem;
+        color: var(--muted);
+        font-size: 1.15rem;
+        line-height: 1.6;
+      }}
+
+      .actions {{
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.9rem;
+      }}
+
+      .button {{
+        display: inline-block;
+        padding: 0.85rem 1.15rem;
+        border: 1px solid var(--accent);
+        border-radius: 999px;
+        text-decoration: none;
+        color: white;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        font-weight: 700;
+      }}
+
+      .button.secondary {{
+        color: var(--ink);
+        background: transparent;
+        border-color: var(--border);
+      }}
+
+      .grid {{
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+        gap: 1rem;
+      }}
+
+      .card {{
+        padding: 1.25rem;
+        border: 1px solid var(--border);
+        border-radius: 1rem;
+        background: rgba(255, 250, 242, 0.92);
+        box-shadow: 0 0.8rem 2rem rgba(35, 24, 15, 0.05);
+      }}
+
+      .card h2 {{
+        margin-top: 0;
+        margin-bottom: 0.55rem;
+        font-size: 1.1rem;
+      }}
+
+      .card p {{
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.55;
+      }}
+
+      code {{
+        font-family: "SFMono-Regular", Consolas, monospace;
+        font-size: 0.95em;
+      }}
+
+      @media (max-width: 40rem) {{
+        main {{
+          padding-top: 3rem;
+        }}
+      }}
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <p class="eyebrow">GitHub Pages Home</p>
+        <h1>PieThorn</h1>
+        <p class="lede">
+          This is the project homepage for the GitHub Pages site. Versioned documentation
+          now lives under <code>/docs/</code> so the site root can host other project pages.
+        </p>
+        <div class="actions">
+          <a class="button" href="./docs/{latest}/index.html">Open Latest Docs</a>
+          <a class="button secondary" href="./docs/">Docs Home</a>
+        </div>
+      </section>
+
+      <section class="grid" aria-label="Site sections">
+        <article class="card">
+          <h2>Documentation</h2>
+          <p>Browse release-specific documentation at <code>/docs/&lt;version&gt;/</code> or use the latest alias at <code>/docs/latest/</code>.</p>
+        </article>
+        <article class="card">
+          <h2>Version Clarity</h2>
+          <p>The active documentation version is visible directly in the URL instead of being hidden at the site root.</p>
+        </article>
+        <article class="card">
+          <h2>Future Pages</h2>
+          <p>This root homepage can now be expanded with project landing content, downloads, examples, or other non-documentation pages.</p>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>
+"""
+    (output_dir / "index.html").write_text(index_html, encoding="utf-8")
+
+
+def write_docs_site_files(docs_dir: Path, versions: list[str], digests: dict[str, str]) -> None:
     latest = versions[-1]
     payload = {
         "latest": latest,
         "versions": [{"name": version, "path": f"{version}/"} for version in reversed(versions)],
         "builds": {version: digests[version] for version in versions},
     }
-    (output_dir / "versions.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    (output_dir / ".nojekyll").write_text("", encoding="utf-8")
+    (docs_dir / "versions.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
     index_html = f"""<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta http-equiv="refresh" content="0; url=./{latest}/index.html">
+    <meta http-equiv="refresh" content="0; url=./latest/index.html">
     <title>PieThorn Documentation</title>
   </head>
   <body>
-    <p>Redirecting to the latest documentation version, <a href="./{latest}/index.html">{latest}</a>.</p>
+    <p>Redirecting to the latest documentation version, <a href="./latest/index.html">{latest}</a>.</p>
   </body>
 </html>
 """
-    (output_dir / "index.html").write_text(index_html, encoding="utf-8")
-    make_relative_symlink(output_dir / versions[-1], output_dir / "latest")
+    (docs_dir / "index.html").write_text(index_html, encoding="utf-8")
+    make_relative_symlink(docs_dir / versions[-1], docs_dir / "latest")
 
 
 def collect_tags(repo_root: Path) -> list[str]:
@@ -201,8 +363,12 @@ def build_versioned_site(repo_root: Path, output_dir: Path) -> None:
     if output_dir.exists():
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / ".nojekyll").write_text("", encoding="utf-8")
 
-    build_root = output_dir / "_builds"
+    docs_dir = output_dir / "docs"
+    docs_dir.mkdir()
+
+    build_root = docs_dir / "_builds"
     build_root.mkdir()
 
     digests_by_version: dict[str, str] = {}
@@ -227,9 +393,10 @@ def build_versioned_site(repo_root: Path, output_dir: Path) -> None:
                 build_docs(worktree_path, canonical_path)
                 canonical_builds[digest] = canonical_path
 
-            make_relative_symlink(canonical_builds[digest], output_dir / version)
+            make_relative_symlink(canonical_builds[digest], docs_dir / version)
 
-    write_site_files(output_dir, versions, digests_by_version)
+    write_homepage(output_dir, versions[-1])
+    write_docs_site_files(docs_dir, versions, digests_by_version)
 
 
 def parse_args() -> argparse.Namespace:
