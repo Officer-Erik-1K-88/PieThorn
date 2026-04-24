@@ -1,6 +1,13 @@
 (function () {
     function getContentRoot() {
         var html = document.documentElement;
+        if (html) {
+            var contentRoot = html.getAttribute("data-content_root");
+            if (contentRoot) {
+                return contentRoot;
+            }
+        }
+
         if (html && html.dataset && html.dataset.contentRoot) {
             return html.dataset.contentRoot;
         }
@@ -23,6 +30,19 @@
         }
 
         return new URL(contentRoot, window.location.href);
+    }
+
+    function getEmbeddedPayload(scriptId) {
+        var script = document.getElementById(scriptId);
+        if (!script || !script.textContent) {
+            return null;
+        }
+
+        try {
+            return JSON.parse(script.textContent);
+        } catch (error) {
+            return null;
+        }
     }
 
     function normalizePathname(pathname) {
@@ -63,14 +83,19 @@
             return;
         }
 
-        var versionsUrl = new URL("../versions.json", currentVersionRoot);
-        var response = await fetch(versionsUrl);
-        if (!response.ok) {
-            return;
+        var payload = getEmbeddedPayload("versions-data");
+        var siteRoot = new URL("../", currentVersionRoot);
+        if (!payload) {
+            var versionsUrl = new URL("../versions.json", currentVersionRoot);
+            var response = await fetch(versionsUrl);
+            if (!response.ok) {
+                return;
+            }
+
+            payload = await response.json();
+            siteRoot = new URL("./", versionsUrl);
         }
 
-        var payload = await response.json();
-        var siteRoot = new URL("./", versionsUrl);
         var versions = Array.isArray(payload.versions) ? payload.versions : [];
         if (versions.length < 2) {
             return;

@@ -14,6 +14,13 @@
 
     function getContentRoot() {
         var html = document.documentElement;
+        if (html) {
+            var contentRoot = html.getAttribute("data-content_root");
+            if (contentRoot) {
+                return contentRoot;
+            }
+        }
+
         if (html && html.dataset && html.dataset.contentRoot) {
             return html.dataset.contentRoot;
         }
@@ -36,6 +43,19 @@
         }
 
         return new URL(contentRoot, window.location.href);
+    }
+
+    function getEmbeddedPayload(scriptId) {
+        var script = document.getElementById(scriptId);
+        if (!script || !script.textContent) {
+            return null;
+        }
+
+        try {
+            return JSON.parse(script.textContent);
+        } catch (error) {
+            return null;
+        }
     }
 
     function detectVersionLabel(currentVersionRoot) {
@@ -159,6 +179,11 @@
     }
 
     async function loadNavPayload(siteRoot) {
+        var embeddedPayload = getEmbeddedPayload("site-nav-data");
+        if (embeddedPayload) {
+            return embeddedPayload;
+        }
+
         var response = await fetch(new URL("site-nav.json", siteRoot));
         if (!response.ok) {
             throw new Error("Failed to load site-nav.json");

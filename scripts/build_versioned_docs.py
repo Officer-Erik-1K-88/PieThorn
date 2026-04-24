@@ -60,6 +60,21 @@ def build_site_nav_placeholder_html(
     )
 
 
+def build_inline_json_script(script_id: str, payload: object) -> str:
+    serialized = json.dumps(payload, indent=2).replace("</", "<\\/")
+    return f'<script id="{script_id}" type="application/json">\n{serialized}\n</script>'
+
+
+def inject_inline_json_scripts(document: str, scripts: list[str]) -> str:
+    if not scripts:
+        return document
+
+    block = "\n".join(scripts)
+    if re.search(r"</body>", document, flags=re.IGNORECASE):
+        return re.sub(r"</body>", block + "\n</body>", document, count=1, flags=re.IGNORECASE)
+    return document + "\n" + block
+
+
 def wrap_info_html_document(document: str, root_prefix: str, *, title: str = "PieThorn", current_path: str) -> str:
     safe_title = html.escape(title)
     nav_html = build_site_nav_placeholder_html(root_prefix, current_path=current_path)
@@ -548,7 +563,7 @@ def collect_site_nav_pages(output_dir: Path) -> list[dict[str, str]]:
     return pages
 
 
-def write_site_nav_manifest(output_dir: Path, latest: str) -> None:
+def write_site_nav_manifest(output_dir: Path, latest: str) -> dict[str, object]:
     payload = {
         "pages": collect_site_nav_pages(output_dir),
         "docs": {
@@ -558,6 +573,7 @@ def write_site_nav_manifest(output_dir: Path, latest: str) -> None:
         },
     }
     (output_dir / "site-nav.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return payload
 
 
 def write_homepage(output_dir: Path, latest: str) -> None:
@@ -729,7 +745,7 @@ def write_homepage(output_dir: Path, latest: str) -> None:
     (output_dir / "index.html").write_text(index_html, encoding="utf-8")
 
 
-def write_docs_site_files(docs_dir: Path, versions: list[str], digests: dict[str, str]) -> None:
+def write_docs_site_files(docs_dir: Path, versions: list[str], digests: dict[str, str]) -> dict[str, object]:
     latest = versions[-1]
     payload = {
         "latest": latest,
@@ -752,6 +768,31 @@ def write_docs_site_files(docs_dir: Path, versions: list[str], digests: dict[str
 """
     (docs_dir / "index.html").write_text(index_html, encoding="utf-8")
     make_relative_symlink(docs_dir / versions[-1], docs_dir / "latest")
+    return payload
+
+
+def embed_runtime_data(output_dir: Path, site_nav_payload: dict[str, object], versions_payload: dict[str, object]) -> None:
+    site_nav_script = build_inline_json_script("site-nav-data", site_nav_payload)
+    versions_script = build_inline_json_script("versions-data", versions_payload)
+
+    for html_path in sorted(output_dir.rglob("*.html")):
+        relative_path = html_path.relative_to(output_dir)
+        if not relative_path.parts or relative_path.parts[0] == "_static":
+            continue
+
+        scripts = [site_nav_script]
+        if relative_path.parts[0] == "docs" and relative_path.name.endswith(".html"):
+            scripts.append(versions_script)
+
+        content = html_path.read_text(encoding="utf-8")
+        if 'id="site-nav-data"' in content:
+            scripts = [script for script in scripts if 'id="site-nav-data"' not in script]
+        if 'id="versions-data"' in content:
+            scripts = [script for script in scripts if 'id="versions-data"' not in script]
+        if not scripts:
+            continue
+
+        html_path.write_text(inject_inline_json_scripts(content, scripts), encoding="utf-8")
 
 
 def collect_tags(repo_root: Path) -> list[str]:
@@ -802,8 +843,9 @@ def build_versioned_site(repo_root: Path, output_dir: Path) -> None:
     if not copy_info_site(repo_root, output_dir):
         write_homepage(output_dir, versions[-1])
     render_project_site_pages(repo_root, output_dir)
-    write_site_nav_manifest(output_dir, versions[-1])
-    write_docs_site_files(docs_dir, versions, digests_by_version)
+    site_nav_payload = write_site_nav_manifest(output_dir, versions[-1])
+    versions_payload = write_docs_site_files(docs_dir, versions, digests_by_version)
+    embed_runtime_data(output_dir, site_nav_payload, versions_payload)
 
 
 def parse_args() -> argparse.Namespace:
