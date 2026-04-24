@@ -8,6 +8,7 @@ prune dist
 prune docs/_build
 prune piethorn.egg-info
 prune scripts
+prune info
 
 exclude piethorn/math/equation.py.old
 
