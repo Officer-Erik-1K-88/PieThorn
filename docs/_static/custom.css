@@ -46,6 +46,11 @@
     background: rgba(255, 250, 242, 0.12);
 }
 
+.site-top-nav__links a[aria-current="page"] {
+    background: rgba(255, 250, 242, 0.18);
+    border-color: rgba(255, 250, 242, 0.45);
+}
+
 .site-top-nav__meta {
     margin-left: auto;
     opacity: 0.85;

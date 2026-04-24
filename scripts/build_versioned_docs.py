@@ -35,30 +35,35 @@ SHARED_NAV_RELATIVE_PATHS = (
 )
 
 
-def build_site_nav_html(root_prefix: str, current_label: str | None = None) -> str:
-    meta = f'<div class="site-top-nav__meta">Viewing {html.escape(current_label)}</div>' if current_label else ""
-    return f"""<nav class="site-top-nav" aria-label="Site">
-  <div class="site-top-nav__inner">
-    <div class="site-top-nav__brand">PieThorn</div>
-    <div class="site-top-nav__links">
-      <a href="{root_prefix}index.html">Home</a>
-      <a href="{root_prefix}docs/">Docs</a>
-      <a href="{root_prefix}docs/latest/index.html">Latest Docs</a>
-    </div>
-    {meta}
-  </div>
-</nav>"""
-
-
 def build_site_nav_stylesheet_href(root_prefix: str) -> str:
     return f"{root_prefix}_static/site-nav.css"
 
 
-def wrap_info_html_document(document: str, root_prefix: str, *, title: str = "PieThorn") -> str:
+def build_site_nav_script_src(root_prefix: str) -> str:
+    return f"{root_prefix}_static/top-nav.js"
+
+
+def build_site_nav_placeholder_html(
+    root_prefix: str,
+    *,
+    current_path: str,
+    current_label: str | None = None,
+) -> str:
+    label_attr = f' data-current-label="{html.escape(current_label, quote=True)}"' if current_label else ""
+    return (
+        '<nav class="site-top-nav" aria-label="Site"'
+        f' data-site-root-prefix="{html.escape(root_prefix, quote=True)}"'
+        f' data-current-path="{html.escape(current_path, quote=True)}"{label_attr}></nav>'
+    )
+
+
+def wrap_info_html_document(document: str, root_prefix: str, *, title: str = "PieThorn", current_path: str) -> str:
     safe_title = html.escape(title)
-    nav_html = build_site_nav_html(root_prefix)
+    nav_html = build_site_nav_placeholder_html(root_prefix, current_path=current_path)
     stylesheet_href = build_site_nav_stylesheet_href(root_prefix)
     stylesheet_link = f'<link rel="stylesheet" href="{stylesheet_href}">'
+    script_src = build_site_nav_script_src(root_prefix)
+    script_tag = f'<script src="{script_src}" defer></script>'
     wrapped = document.strip()
     lowered = wrapped.lower()
 
@@ -117,12 +122,20 @@ def wrap_info_html_document(document: str, root_prefix: str, *, title: str = "Pi
 
     has_nav = '<nav class="site-top-nav"' in lowered
     has_stylesheet_link = stylesheet_href in wrapped
+    has_script_tag = script_src in wrapped
 
     if "</head>" in lowered and not has_stylesheet_link:
         wrapped = re.sub(r"</head>", stylesheet_link + "\n</head>", wrapped, count=1, flags=re.IGNORECASE)
         lowered = wrapped.lower()
     elif "</head>" not in lowered and not has_stylesheet_link:
         wrapped = stylesheet_link + "\n" + wrapped
+        lowered = wrapped.lower()
+
+    if "</body>" in lowered and not has_script_tag:
+        wrapped = re.sub(r"</body>", script_tag + "\n</body>", wrapped, count=1, flags=re.IGNORECASE)
+        lowered = wrapped.lower()
+    elif "</body>" not in lowered and not has_script_tag:
+        wrapped += "\n" + script_tag
         lowered = wrapped.lower()
 
     if "<title" not in lowered and "</head>" in lowered:
@@ -333,9 +346,10 @@ html_sidebars = _existing_sidebars
 
 
 def copy_shared_site_assets(repo_root: Path, output_dir: Path) -> None:
-    destination = output_dir / "_static/site-nav.css"
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(repo_root / "docs/_static/custom.css", destination)
+    static_dir = output_dir / "_static"
+    static_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(repo_root / "docs/_static/custom.css", static_dir / "site-nav.css")
+    shutil.copy2(repo_root / "docs/_static/top-nav.js", static_dir / "top-nav.js")
 
 
 def make_relative_symlink(target: Path, link_path: Path) -> None:
@@ -369,7 +383,7 @@ def root_prefix_for_output(output_relative_path: Path) -> str:
     return "../" * len(parent.parts)
 
 
-def render_rst_info_page(source_path: Path, destination: Path, root_prefix: str) -> None:
+def render_rst_info_page(source_path: Path, destination: Path, root_prefix: str, current_path: str) -> None:
     from docutils.core import publish_parts
 
     source = source_path.read_text(encoding="utf-8")
@@ -377,21 +391,45 @@ def render_rst_info_page(source_path: Path, destination: Path, root_prefix: str)
     title = parts.get("title", source_path.stem)
     body_html = parts.get("body") or parts.get("whole") or ""
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(wrap_info_html_document(body_html, root_prefix, title=title), encoding="utf-8")
+    destination.write_text(
+        wrap_info_html_document(
+            body_html,
+            root_prefix,
+            title=title,
+            current_path=current_path,
+        ),
+        encoding="utf-8",
+    )
 
 
-def render_plain_text_info_page(source_path: Path, destination: Path, root_prefix: str) -> None:
+def render_plain_text_info_page(source_path: Path, destination: Path, root_prefix: str, current_path: str) -> None:
     text = html.escape(source_path.read_text(encoding="utf-8"))
     title = source_path.stem
     body_html = f"<pre>{text}</pre>"
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(wrap_info_html_document(body_html, root_prefix, title=title), encoding="utf-8")
+    destination.write_text(
+        wrap_info_html_document(
+            body_html,
+            root_prefix,
+            title=title,
+            current_path=current_path,
+        ),
+        encoding="utf-8",
+    )
 
 
-def inject_nav_into_html(source_path: Path, destination: Path, root_prefix: str) -> None:
+def inject_nav_into_html(source_path: Path, destination: Path, root_prefix: str, current_path: str) -> None:
     document = source_path.read_text(encoding="utf-8")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(wrap_info_html_document(document, root_prefix, title=source_path.stem), encoding="utf-8")
+    destination.write_text(
+        wrap_info_html_document(
+            document,
+            root_prefix,
+            title=source_path.stem,
+            current_path=current_path,
+        ),
+        encoding="utf-8",
+    )
 
 
 def copy_info_site(repo_root: Path, output_dir: Path) -> bool:
@@ -426,13 +464,14 @@ def copy_info_site(repo_root: Path, output_dir: Path) -> bool:
     for output_relative_path, source_path in seen_outputs.items():
         destination = output_dir / output_relative_path
         root_prefix = root_prefix_for_output(output_relative_path)
+        current_path = output_relative_path.as_posix()
         suffix = source_path.suffix.lower()
         if suffix == ".rst":
-            render_rst_info_page(source_path, destination, root_prefix)
+            render_rst_info_page(source_path, destination, root_prefix, current_path)
         elif suffix == ".txt":
-            render_plain_text_info_page(source_path, destination, root_prefix)
+            render_plain_text_info_page(source_path, destination, root_prefix, current_path)
         elif suffix == ".html":
-            inject_nav_into_html(source_path, destination, root_prefix)
+            inject_nav_into_html(source_path, destination, root_prefix, current_path)
         else:
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source_path, destination)
@@ -440,13 +479,68 @@ def copy_info_site(repo_root: Path, output_dir: Path) -> bool:
     return True
 
 
+def label_from_output_path(output_path: Path) -> str:
+    if output_path == Path("index.html"):
+        return "Home"
+
+    if output_path.name == "index.html" and output_path.parent != Path("."):
+        source = output_path.parent.name
+    else:
+        source = output_path.stem
+
+    return source.replace("-", " ").replace("_", " ").title()
+
+
+def extract_html_title(html_path: Path) -> str | None:
+    content = html_path.read_text(encoding="utf-8")
+    match = re.search(r"<title>(.*?)</title>", content, flags=re.IGNORECASE | re.DOTALL)
+    if not match:
+        return None
+    return html.unescape(match.group(1)).strip() or None
+
+
+def collect_site_nav_pages(output_dir: Path) -> list[dict[str, str]]:
+    pages: list[dict[str, str]] = []
+
+    for html_path in sorted(output_dir.rglob("*.html")):
+        relative_path = html_path.relative_to(output_dir)
+        if not relative_path.parts:
+            continue
+        if relative_path.parts[0] in {"docs", "_static"}:
+            continue
+
+        label = label_from_output_path(relative_path)
+        if relative_path != Path("index.html"):
+            label = extract_html_title(html_path) or label
+        pages.append({"label": label, "path": relative_path.as_posix()})
+
+    pages.sort(key=lambda page: (page["path"] != "index.html", page["path"].count("/"), page["path"]))
+    return pages
+
+
+def write_site_nav_manifest(output_dir: Path, latest: str) -> None:
+    payload = {
+        "pages": collect_site_nav_pages(output_dir),
+        "docs": {
+            "home": "docs/",
+            "latest": "docs/latest/index.html",
+            "latest_version": latest,
+        },
+    }
+    (output_dir / "site-nav.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
 def write_homepage(output_dir: Path, latest: str) -> None:
+    nav_html = build_site_nav_placeholder_html("", current_path="index.html")
+    stylesheet_href = build_site_nav_stylesheet_href("")
+    script_src = build_site_nav_script_src("")
     index_html = f"""<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>PieThorn</title>
+    <link rel="stylesheet" href="{stylesheet_href}">
     <style>
       :root {{
         color-scheme: light;
@@ -568,6 +662,7 @@ def write_homepage(output_dir: Path, latest: str) -> None:
     </style>
   </head>
   <body>
+    {nav_html}
     <main>
       <section class="hero">
         <p class="eyebrow">GitHub Pages Home</p>
@@ -597,6 +692,7 @@ def write_homepage(output_dir: Path, latest: str) -> None:
         </article>
       </section>
     </main>
+    <script src="{script_src}" defer></script>
   </body>
 </html>
 """
@@ -675,6 +771,7 @@ def build_versioned_site(repo_root: Path, output_dir: Path) -> None:
 
     if not copy_info_site(repo_root, output_dir):
         write_homepage(output_dir, versions[-1])
+    write_site_nav_manifest(output_dir, versions[-1])
     write_docs_site_files(docs_dir, versions, digests_by_version)
 
 
