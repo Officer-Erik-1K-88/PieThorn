@@ -16,6 +16,7 @@ but has yet to be released as a version.
 
 Changes:
 
+* Modified version system to use ``rc`` instead of ``-test``.
 * Modified project urls in ``pyproject.toml``.
 * Modified GitHub Pages builder to give a homepage and have a top nav bar.
 * Modified packaging to prevent unwanted stuff from being packaged

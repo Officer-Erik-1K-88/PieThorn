@@ -46,17 +46,19 @@ hard-coded version string in the source tree.
 Tag format
 ----------
 
-Use annotated tags in ``vX.Y.Z`` format:
+Use annotated tags in PEP 440-compatible formats:
 
-* ``v0.1.0`` for the first public release
-* ``v0.1.1`` for a bugfix release
-* ``v0.2.0`` for a backwards-compatible feature release
-* ``v1.0.0`` when the public API is considered stable
+* ``vX.Y.ZrcN`` for TestPyPI release candidates, for example ``v0.1.1rc1``
+* ``vX.Y.Z`` for final PyPI releases, for example ``v0.1.1``
+
+Avoid suffixes like ``-test`` because they are valid Git tag names but not
+valid Python package versions, so ``setuptools-scm`` cannot turn them into
+publishable package metadata.
 
 Recommended release flow
 ------------------------
 
-From the repository root:
+Validate the working tree from the repository root before you tag anything:
 
 .. code-block:: bash
 
@@ -65,36 +67,21 @@ From the repository root:
    python -m build
    python -m twine check dist/*
 
-Create the release tag on the commit you want to publish:
+If you want a TestPyPI release candidate first, tag and push an ``rc`` build:
 
 .. code-block:: bash
 
-   git tag -a v0.1.0 -m "PieThorn 0.1.0"
+   git tag -a v0.1.1rc1 -m "PieThorn 0.1.1 release candidate 1"
+   git push origin v0.1.1rc1
 
-Then verify what version ``setuptools-scm`` resolved:
-
-.. code-block:: bash
-
-   python -m build
-
-If the build output looks correct, push the commit and tag:
+After validating that release candidate on TestPyPI, create and push the final
+release tag on the commit you want to publish:
 
 .. code-block:: bash
 
+   git tag -a v0.1.1 -m "PieThorn 0.1.1"
    git push origin main
-   git push origin v0.1.0
-
-For a dry run, upload to TestPyPI first:
-
-.. code-block:: bash
-
-   python -m twine upload --repository testpypi dist/*
-
-Then publish the same built artifacts to PyPI:
-
-.. code-block:: bash
-
-   python -m twine upload dist/*
+   git push origin v0.1.1
 
 Development versions
 --------------------
@@ -196,8 +183,8 @@ After that setup:
 
 * create and push a ``vX.Y.Z`` tag to run ``live-publish.yml`` and publish to
   PyPI
-* create and push a ``vX.Y.Z-test`` tag to run ``test-publish.yml`` and
-  publish to TestPyPI
+* create and push a ``vX.Y.ZrcN`` tag to run ``test-publish.yml`` and publish
+  to TestPyPI
 * use the ``test-publish.yml`` manual workflow dispatch to dry-run a build
   against TestPyPI for any selected ref
 * use the ``live-publish.yml`` manual workflow dispatch to publish a selected
