@@ -104,7 +104,15 @@
         container.hidden = false;
     }
 
-    initVersionSwitcher().catch(function () {
-        /* Ignore version switcher failures so the docs still render. */
-    });
+    function start() {
+        initVersionSwitcher().catch(function () {
+            /* Ignore version switcher failures so the docs still render. */
+        });
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", start);
+    } else {
+        start();
+    }
 }());

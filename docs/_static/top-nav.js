@@ -38,7 +38,15 @@
         return new URL(contentRoot, window.location.href);
     }
 
-    function detectVersionLabel() {
+    function detectVersionLabel(currentVersionRoot) {
+        if (currentVersionRoot) {
+            var trimmed = currentVersionRoot.pathname.replace(/\/+$/, "");
+            var pieces = trimmed.split("/").filter(Boolean);
+            if (pieces.length) {
+                return pieces[pieces.length - 1];
+            }
+        }
+
         var marker = "/docs/";
         var pathname = window.location.pathname;
         var index = pathname.indexOf(marker);
@@ -73,7 +81,7 @@
             nav: null,
             siteRoot: siteRoot,
             currentPath: relativePath,
-            currentLabel: detectVersionLabel(),
+            currentLabel: detectVersionLabel(currentVersionRoot),
         };
     }
 
