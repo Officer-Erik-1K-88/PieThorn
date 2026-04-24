@@ -1,8 +1,8 @@
 from abc import abstractmethod, ABC
 from typing import Callable, Iterable, TypeVar, Any, Sequence, MutableSequence, overload
 
-from pythorn.collections.views import SequenceView, MapView
-from pythorn.typing import argument
+from piethorn.collections.views import SequenceView, MapView
+from piethorn.typing import argument
 
 
 def _listener_name(name: int | str) -> str:
