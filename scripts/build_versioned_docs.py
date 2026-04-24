@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+from packaging.version import InvalidVersion, Version
 
 
 DOC_INPUT_PATHS = (
@@ -796,8 +797,16 @@ def embed_runtime_data(output_dir: Path, site_nav_payload: dict[str, object], ve
 
 
 def collect_tags(repo_root: Path) -> list[str]:
-    tags = run_git(repo_root, "tag", "--sort=version:refname", "--list", "v*").splitlines()
-    return [tag for tag in tags if tag]
+    raw_tags = run_git(repo_root, "tag", "--list", "v*").splitlines()
+    tags = [tag for tag in raw_tags if tag]
+    try:
+        return sorted(tags, key=parse_version_tag)
+    except InvalidVersion as error:
+        raise SystemExit(f"Found non-PEP 440 documentation tag: {error}") from error
+
+
+def parse_version_tag(tag: str) -> Version:
+    return Version(tag.removeprefix("v"))
 
 
 def build_versioned_site(repo_root: Path, output_dir: Path) -> None:

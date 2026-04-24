@@ -22,6 +22,7 @@ but has yet to be released as a version.
 
 Changes:
 
+* Fixed documentation pages version switcher to order correctly.
 * Added environment to ``release.yml`` workflow.
 
 PreReleases
