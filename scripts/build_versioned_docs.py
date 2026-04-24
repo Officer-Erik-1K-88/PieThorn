@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import html
-import io
 import hashlib
 import json
 import os
@@ -28,6 +27,12 @@ DOC_INPUT_PATHS = (
 
 INJECTED_CONF_MARKER = "# Injected by scripts/build_versioned_docs.py"
 INFO_RENDERED_SUFFIXES = {".rst", ".txt"}
+SHARED_NAV_RELATIVE_PATHS = (
+    Path("docs/_static/custom.css"),
+    Path("docs/_static/top-nav.js"),
+    Path("docs/_static/version-switcher.js"),
+    Path("docs/_templates/versions.html"),
+)
 
 
 def build_site_nav_html(root_prefix: str, current_label: str | None = None) -> str:
@@ -45,82 +50,15 @@ def build_site_nav_html(root_prefix: str, current_label: str | None = None) -> s
 </nav>"""
 
 
-def build_site_nav_style_block() -> str:
-    return """<style>
-.site-top-nav {
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-  margin: 0 0 1rem;
-  padding: 0.8rem 1rem;
-  background: rgba(35, 24, 15, 0.94);
-  color: #fffaf2;
-  border-bottom: 1px solid rgba(219, 198, 178, 0.35);
-  box-shadow: 0 0.5rem 1.5rem rgba(35, 24, 15, 0.18);
-}
-.site-top-nav__inner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.8rem 1rem;
-}
-.site-top-nav__brand {
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-.site-top-nav__links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-.site-top-nav__links a,
-.site-top-nav__meta {
-  color: #fffaf2;
-}
-.site-top-nav__links a {
-  padding: 0.25rem 0.55rem;
-  border: 1px solid rgba(255, 250, 242, 0.2);
-  border-radius: 999px;
-  text-decoration: none;
-}
-.site-top-nav__links a:hover,
-.site-top-nav__links a:focus {
-  background: rgba(255, 250, 242, 0.12);
-}
-.site-top-nav__meta {
-  margin-left: auto;
-  opacity: 0.85;
-  font-size: 0.95rem;
-}
-.info-page {
-  margin: 0;
-  color: #23180f;
-  background: #f5efe5;
-  font-family: Georgia, "Times New Roman", serif;
-}
-.info-page__content {
-  max-width: 64rem;
-  margin: 0 auto;
-  padding: 0 1rem 3rem;
-}
-.info-page__content pre {
-  overflow-x: auto;
-  white-space: pre-wrap;
-}
-@media (max-width: 40rem) {
-  .site-top-nav__meta {
-    width: 100%;
-    margin-left: 0;
-  }
-}
-</style>"""
+def build_site_nav_stylesheet_href(root_prefix: str) -> str:
+    return f"{root_prefix}_static/site-nav.css"
 
 
 def wrap_info_html_document(document: str, root_prefix: str, *, title: str = "PieThorn") -> str:
     safe_title = html.escape(title)
     nav_html = build_site_nav_html(root_prefix)
-    style_block = build_site_nav_style_block()
+    stylesheet_href = build_site_nav_stylesheet_href(root_prefix)
+    stylesheet_link = f'<link rel="stylesheet" href="{stylesheet_href}">'
     wrapped = document.strip()
     lowered = wrapped.lower()
 
@@ -178,13 +116,13 @@ def wrap_info_html_document(document: str, root_prefix: str, *, title: str = "Pi
         lowered = wrapped.lower()
 
     has_nav = '<nav class="site-top-nav"' in lowered
-    has_nav_style = ".site-top-nav" in wrapped
+    has_stylesheet_link = stylesheet_href in wrapped
 
-    if "</head>" in lowered and not has_nav_style:
-        wrapped = re.sub(r"</head>", style_block + "\n</head>", wrapped, count=1, flags=re.IGNORECASE)
+    if "</head>" in lowered and not has_stylesheet_link:
+        wrapped = re.sub(r"</head>", stylesheet_link + "\n</head>", wrapped, count=1, flags=re.IGNORECASE)
         lowered = wrapped.lower()
-    elif "</head>" not in lowered and not has_nav_style:
-        wrapped = style_block + wrapped
+    elif "</head>" not in lowered and not has_stylesheet_link:
+        wrapped = stylesheet_link + "\n" + wrapped
         lowered = wrapped.lower()
 
     if "<title" not in lowered and "</head>" in lowered:
@@ -254,27 +192,48 @@ def run_git(repo_root: Path, *args: str) -> str:
     return completed.stdout.strip()
 
 
-def iter_files(path: Path) -> list[Path]:
-    if path.is_file():
-        return [path]
+def run_git_binary(repo_root: Path, *args: str) -> bytes:
+    completed = subprocess.run(
+        ["git", *args],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    )
+    return completed.stdout
 
-    if not path.exists():
-        return []
 
-    return sorted(file_path for file_path in path.rglob("*") if file_path.is_file())
-
-
-def hash_inputs(worktree: Path) -> str:
+def hash_version_inputs(repo_root: Path, tag: str) -> str:
     digest = hashlib.sha256()
+    ls_tree_output = run_git_binary(
+        repo_root,
+        "ls-tree",
+        "-r",
+        "-z",
+        "--full-tree",
+        tag,
+        "--",
+        *DOC_INPUT_PATHS,
+    )
 
-    for relative_path in DOC_INPUT_PATHS:
-        source_path = worktree / relative_path
-        for file_path in iter_files(source_path):
-            digest.update(file_path.relative_to(worktree).as_posix().encode("utf-8"))
-            digest.update(b"\0")
-            digest.update(file_path.read_bytes())
-            digest.update(b"\0")
+    for entry in ls_tree_output.split(b"\0"):
+        if not entry:
+            continue
+        metadata, path_bytes = entry.split(b"\t", 1)
+        object_id = metadata.rsplit(b" ", 1)[-1]
+        digest.update(path_bytes)
+        digest.update(b"\0")
+        digest.update(object_id)
+        digest.update(b"\0")
 
+    # These files are injected into historical checkouts before the build.
+    for relative_path in SHARED_NAV_RELATIVE_PATHS:
+        source_path = repo_root / relative_path
+        digest.update(relative_path.as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(source_path.read_bytes())
+        digest.update(b"\0")
+
+    digest.update(INJECTED_CONF_MARKER.encode("utf-8"))
     return digest.hexdigest()[:16]
 
 
@@ -302,15 +261,22 @@ def build_docs(worktree: Path, output_dir: Path) -> None:
 
 def extract_tag(repo_root: Path, tag: str, destination: Path) -> None:
     destination.mkdir(parents=True, exist_ok=True)
-    archive = subprocess.run(
+    archive = subprocess.Popen(
         ["git", "archive", "--format=tar", tag],
         cwd=repo_root,
-        check=True,
-        capture_output=True,
-    ).stdout
+        stdout=subprocess.PIPE,
+    )
+    assert archive.stdout is not None
 
-    with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
-        tar.extractall(destination, filter="data")
+    try:
+        with tarfile.open(fileobj=archive.stdout, mode="r|") as tar:
+            tar.extractall(destination, filter="data")
+    finally:
+        archive.stdout.close()
+
+    return_code = archive.wait()
+    if return_code != 0:
+        raise subprocess.CalledProcessError(return_code, ["git", "archive", "--format=tar", tag])
 
 
 def inject_shared_navigation(repo_root: Path, worktree: Path) -> None:
@@ -318,12 +284,7 @@ def inject_shared_navigation(repo_root: Path, worktree: Path) -> None:
     if not docs_root.exists():
         raise FileNotFoundError(f"Tag checkout at {worktree} does not contain docs/.")
 
-    for relative_path in (
-        Path("docs/_static/custom.css"),
-        Path("docs/_static/top-nav.js"),
-        Path("docs/_static/version-switcher.js"),
-        Path("docs/_templates/versions.html"),
-    ):
+    for relative_path in SHARED_NAV_RELATIVE_PATHS:
         source = repo_root / relative_path
         destination = worktree / relative_path
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -369,6 +330,12 @@ else:
 html_sidebars = _existing_sidebars
 """
     conf_path.write_text(conf_text, encoding="utf-8")
+
+
+def copy_shared_site_assets(repo_root: Path, output_dir: Path) -> None:
+    destination = output_dir / "_static/site-nav.css"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(repo_root / "docs/_static/custom.css", destination)
 
 
 def make_relative_symlink(target: Path, link_path: Path) -> None:
@@ -678,6 +645,7 @@ def build_versioned_site(repo_root: Path, output_dir: Path) -> None:
 
     docs_dir = output_dir / "docs"
     docs_dir.mkdir()
+    copy_shared_site_assets(repo_root, output_dir)
 
     build_root = docs_dir / "_builds"
     build_root.mkdir()
@@ -693,13 +661,12 @@ def build_versioned_site(repo_root: Path, output_dir: Path) -> None:
         for version in versions:
             safe_name = version.replace("/", "_")
             worktree_path = worktree_root / safe_name
-            extract_tag(repo_root, version, worktree_path)
-            inject_shared_navigation(repo_root, worktree_path)
-
-            digest = hash_inputs(worktree_path)
+            digest = hash_version_inputs(repo_root, version)
             digests_by_version[version] = digest
 
             if digest not in canonical_builds:
+                extract_tag(repo_root, version, worktree_path)
+                inject_shared_navigation(repo_root, worktree_path)
                 canonical_path = build_root / digest
                 build_docs(worktree_path, canonical_path)
                 canonical_builds[digest] = canonical_path
