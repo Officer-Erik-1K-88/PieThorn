@@ -22,6 +22,7 @@ but has yet to be released as a version.
 
 Changes:
 
+* Added Node.js site tester, to validate it's been built correctly.
 * Finally fixed the top nav and version switcher for documentation pages in GitHub Pages site.
 * Made it so that pushes to the ``main`` branch triggers the GitHub Pages workflow, only the changes that could effect GitHub Pages will trigger the workflow.
 

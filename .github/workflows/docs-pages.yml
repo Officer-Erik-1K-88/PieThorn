@@ -11,6 +11,7 @@ on:
       - "info/**"
       - "docs/**"
       - "scripts/build_versioned_docs.py"
+      - "scripts/node/**"
       - "README.rst"
       - "CHANGELOG.rst"
       - "pyproject.toml"
@@ -42,14 +43,27 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Install docs builder
         run: python -m pip install --upgrade sphinx
+
+      - name: Install docs UI test dependencies
+        working-directory: scripts/node
+        run: npm ci
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
       - name: Build versioned docs
         run: python scripts/build_versioned_docs.py --output site
+
+      - name: Verify docs UI
+        working-directory: scripts/node
+        run: npm run test:docs-ui
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
