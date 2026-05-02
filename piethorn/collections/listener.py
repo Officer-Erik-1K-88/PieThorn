@@ -6,7 +6,6 @@ from functools import wraps
 from typing import Callable, Iterable, Any, Sequence, MutableSequence, TypeAlias
 
 from piethorn.collections.mapping import Map
-from piethorn.collections.views import MapView
 
 
 def _listener_name(name: int | str) -> str:
@@ -129,8 +128,6 @@ class EventBuilder:
         self._name = "UNKNOWN_EVENT"
         self._static = static
         self._copies_to_new = copies_to_new
-        self._values: dict[str, Any] = {}
-        self._values_view = MapView(self._values)
         self._build = None
         if listener is not None:
             self._set_listener(listener)
@@ -151,13 +148,6 @@ class EventBuilder:
     @property
     def copies_to_new(self):
         return self._copies_to_new
-
-    @property
-    def values(self):
-        return self._values_view
-
-    def add_value(self, key: str, value: Any):
-        self._values[key] = value
 
     def build(self, args: tuple, kwargs: dict, returned: Any, called_method, *, caller: Listener|None=None) -> Event:
         """
