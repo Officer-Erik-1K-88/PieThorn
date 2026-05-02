@@ -379,6 +379,13 @@ class ListenerBuilder:
                         pass
             raise GetListenerError("Listener '%s' not found" % check_name)
 
+    def has(self, name: int | str) -> bool:
+        try:
+            self.get(name)
+            return True
+        except GetListenerError:
+            return False
+
     def build(self, name: int | str, event_builder: EventBuilder | None=None):
         return Listener(name, event_builder if event_builder is not None else self._event_builder)
 
@@ -413,8 +420,15 @@ def listens(*listens_for: int | str):
 
     This decorator should only be used on methods of
     classes that extend ``Listenable``.
-    However, that is only for finer control,
-    there is global listeners that allow
+    If the decorated callable is not called on a ``Listenable`` instance, the
+    event is sent to ``GLOBAL_LISTENERS`` instead.
+
+    When the decorator is passed to some method on ``Listenable``,
+    then the ``self`` argument will not be passed to ``Event.args``
+    (in this case, we then wrap the ``Event.called_method`` in a way that allows it to
+    be called as if it was ``self.some_function()``).
+    However, when it's not on some ``Listenable`` instance,
+    then the ``self`` argument is passed to ``Event.args``.
 
     This decorator can be used with other decorators like ``property``,
     all that is needed to be done is that this decorator must be the first
@@ -457,7 +471,7 @@ def listens(*listens_for: int | str):
             return_value = called_method(*real_args, **kwargs)
 
             for name in getattr(wrapper, "__listens_for__", listens_for):
-                try:
+                if listenable.has_listener(name):
                     listenable.event_trigger(
                         name,
                         real_args,
@@ -465,18 +479,14 @@ def listens(*listens_for: int | str):
                         return_value,
                         called_method
                     )
-                except GetListenerError:
-                    if listenable is not GLOBAL_LISTENERS:
-                        try:
-                            GLOBAL_LISTENERS.event_trigger(
-                                name,
-                                real_args,
-                                kwargs,
-                                return_value,
-                                called_method
-                            )
-                        except GetListenerError:
-                            pass
+                elif listenable is not GLOBAL_LISTENERS and GLOBAL_LISTENERS.has_listener(name):
+                    GLOBAL_LISTENERS.event_trigger(
+                        name,
+                        real_args,
+                        kwargs,
+                        return_value,
+                        called_method
+                    )
 
             return return_value
 
@@ -624,6 +634,9 @@ class Listenable:
         """
         return self.__listeners__.get(name)
 
+    def has_listener(self, name: int | str) -> bool:
+        return self.__listeners__.has(name)
+
     def add_listener(self, name: int | str, caller: caller_type):
         """
         Adds a function to a ``Listener``.
@@ -656,7 +669,7 @@ class ListenerHolder(Listenable):
         """
         super().__init__(*named, listener_builder=listener_builder)
 
-    def add(self, name: int | str, event_builder: EventBuilder | None = None):
+    def create(self, name: int | str, event_builder: EventBuilder | None = None):
         self.__listeners__.add(name, event_builder)
 
     def remove(self, name: int | str, default=None):
