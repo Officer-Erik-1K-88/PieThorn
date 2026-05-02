@@ -88,7 +88,7 @@ class Event:
         """
         The method that called this event.
 
-        This can be dangerous to use, expectantly
+        This can be dangerous to use, especially
         when it is a setter, adder, or deleter as
         if ``Event.called_method(*Event.args, **Event.kwargs)``
         is called, then it would essentially be calling the same
@@ -203,8 +203,8 @@ class EventBuilder:
             if destabilize_event:
                 event._builder = None
             if event.active:
-                # TODO: Make it so that we can terminate event life cycle.
-                pass
+                # TODO: Make it so that we can terminate event life cycle without the need of throwing an error.
+                raise RuntimeError("Cannot clear an active event. This may change in the future.")
         return event
     
     def copy(self, **kwargs) -> EventBuilder:
@@ -389,10 +389,13 @@ class ListenerBuilder:
     def build(self, name: int | str, event_builder: EventBuilder | None=None):
         return Listener(name, event_builder if event_builder is not None else self._event_builder)
 
-    def add(self, name: int | str, event_builder: EventBuilder | None=None):
+    def add(self, name: int | str, event_builder: EventBuilder | None=None, *, replace: bool = False):
         listener = self.build(name, event_builder)
+        if not replace and listener.name in self.__listeners__:
+            return self.__listeners__[listener.name]
         listener._builder = self
         self.__listeners__[listener.name] = listener
+        return listener
 
     def remove(self, name: int | str, default=None):
         if isinstance(name, int):
@@ -429,6 +432,9 @@ def listens(*listens_for: int | str):
     be called as if it was ``self.some_function()``).
     However, when it's not on some ``Listenable`` instance,
     then the ``self`` argument is passed to ``Event.args``.
+
+    Class methods and static methods trigger global listeners
+    unless manually passed a Listenable instance as their first argument.
 
     This decorator can be used with other decorators like ``property``,
     all that is needed to be done is that this decorator must be the first
@@ -669,8 +675,8 @@ class ListenerHolder(Listenable):
         """
         super().__init__(*named, listener_builder=listener_builder)
 
-    def create(self, name: int | str, event_builder: EventBuilder | None = None):
-        self.__listeners__.add(name, event_builder)
+    def create(self, name: int | str, event_builder: EventBuilder | None = None, *, replace: bool = False):
+        return self.__listeners__.add(name, event_builder, replace=replace)
 
     def remove(self, name: int | str, default=None):
         return self.__listeners__.remove(name, default)
