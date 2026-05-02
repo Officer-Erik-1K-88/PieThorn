@@ -13,6 +13,9 @@ def _listener_name(name: int | str) -> str:
         return f"event_{name}"
     return name
 
+class GetListenerError(Exception):
+    pass
+
 class EventEnd(Exception):
     def __init__(self, event: Event):
         super().__init__(f"Event {event.name} ended")
@@ -82,7 +85,15 @@ class Event:
 
     @property
     def called_method(self):
-        """The method that called this event"""
+        """
+        The method that called this event.
+
+        This can be dangerous to use, expectantly
+        when it is a setter, adder, or deleter as
+        if ``Event.called_method(*Event.args, **Event.kwargs)``
+        is called, then it would essentially be calling the same
+        function a second time.
+        """
         return self._called_method
 
     def pass_values(self, args: tuple=(), kwargs: dict | None=None, returned=None, called_method=None):
@@ -301,7 +312,7 @@ class Listener:
                     finally:
                         caller_event._in_use = False
 
-                    if caller_event.end_chain or not cont:
+                    if caller_event.end_chain or cont is False:
                         break
                 except EventEnd as e:
                     e.event._in_use = False
@@ -321,7 +332,7 @@ class Listener:
         for calling in self.__callers__:
             if callable(calling):
                 cont = calling(event)
-                if not cont:
+                if cont is False:
                     break
         return cont
 
@@ -366,7 +377,7 @@ class ListenerBuilder:
                         return self.__listeners__.value_at_index(int(match.group(1)))
                     except IndexError:
                         pass
-            raise e
+            raise GetListenerError("Listener '%s' not found" % check_name)
 
     def build(self, name: int | str, event_builder: EventBuilder | None=None):
         return Listener(name, event_builder if event_builder is not None else self._event_builder)
@@ -375,6 +386,16 @@ class ListenerBuilder:
         listener = self.build(name, event_builder)
         listener._builder = self
         self.__listeners__[listener.name] = listener
+
+    def remove(self, name: int | str, default=None):
+        if isinstance(name, int):
+            try:
+                listener = self.__listeners__.value_at_index(name)
+            except IndexError:
+                return self.__listeners__.pop(_listener_name(name), default)
+            else:
+                return self.__listeners__.pop(listener.name, default)
+        return self.__listeners__.pop(_listener_name(name), default)
 
     def __len__(self):
         return len(self.__listeners__)
@@ -392,6 +413,8 @@ def listens(*listens_for: int | str):
 
     This decorator should only be used on methods of
     classes that extend ``Listenable``.
+    However, that is only for finer control,
+    there is global listeners that allow
 
     This decorator can be used with other decorators like ``property``,
     all that is needed to be done is that this decorator must be the first
@@ -417,22 +440,43 @@ def listens(*listens_for: int | str):
         @wraps(func)
         def wrapper(*args, **kwargs):
             instance_or_cls = args[0] if args else None
-            real_args = args[1:]
+            first_arg_normal = True
+            if isinstance(instance_or_cls, Listenable):
+                listenable = instance_or_cls
+                first_arg_normal = False
+            else:
+                listenable = GLOBAL_LISTENERS
 
-            def called_method(*a1, **kw1):
-                return func(instance_or_cls, *a1, **kw1)
+            if first_arg_normal:
+                real_args = args
+                called_method = func
+            else:
+                called_method = lambda *a1, **kw1: func(instance_or_cls, *a1, **kw1)
+                real_args = args[1:]
 
             return_value = called_method(*real_args, **kwargs)
 
-            if isinstance(instance_or_cls, Listenable):
-                for name in getattr(wrapper, "__listens_for__", listens_for):
-                    instance_or_cls.event_trigger(
+            for name in getattr(wrapper, "__listens_for__", listens_for):
+                try:
+                    listenable.event_trigger(
                         name,
                         real_args,
                         kwargs,
                         return_value,
                         called_method
                     )
+                except GetListenerError:
+                    if listenable is not GLOBAL_LISTENERS:
+                        try:
+                            GLOBAL_LISTENERS.event_trigger(
+                                name,
+                                real_args,
+                                kwargs,
+                                return_value,
+                                called_method
+                            )
+                        except GetListenerError:
+                            pass
 
             return return_value
 
@@ -602,6 +646,33 @@ class Listenable:
     def event_trigger(self, name: int | str, args: tuple, kwargs: dict, returned: Any, called_method: Callable):
         self.get_listener(name).use(args, kwargs, returned, called_method)
 
+
+class ListenerHolder(Listenable):
+    def __init__(self, *named: str, listener_builder: ListenerBuilder | None = None):
+        """
+
+        :param event_count: The number of unnamed events.
+        :param named: The names of each event listener to be created.
+        """
+        super().__init__(*named, listener_builder=listener_builder)
+
+    def add(self, name: int | str, event_builder: EventBuilder | None = None):
+        self.__listeners__.add(name, event_builder)
+
+    def remove(self, name: int | str, default=None):
+        return self.__listeners__.remove(name, default)
+
+    def __getitem__(self, item: int | str):
+        return self.__listeners__.get(item)
+
+    def __len__(self):
+        return len(self.__listeners__)
+
+    def __iter__(self):
+        return iter(self.__listeners__)
+
+
+GLOBAL_LISTENERS = ListenerHolder()
 
 
 class ListenerSequence[T](Listenable, Sequence[T], ABC):
