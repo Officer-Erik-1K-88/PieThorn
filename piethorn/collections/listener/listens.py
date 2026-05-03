@@ -1,24 +1,100 @@
 from __future__ import annotations
 
 from functools import wraps
+from typing import TypeAlias
 
 from piethorn.collections.listener.listener import _listener_name
+
+boolean_type: TypeAlias = 'bool | SetBool'
+
+class SetBool:
+    def __init__(self, value: boolean_type, default: bool|None=None, and_change: bool=True, start_set: bool=False):
+        if isinstance(value, bool):
+            self._value = value
+            self._default = default
+            self._set = start_set
+        else:
+            self._value = value.value
+            self._default = value.default if default is None else default
+            self._set = value.set or start_set
+        self._and_change = and_change
+        if self._default is None:
+            raise RuntimeError("SetBool must have a default value.")
+
+    @property
+    def value(self) -> bool:
+        return self._value
+    @value.setter
+    def value(self, value: bool):
+        self._value = value
+        self._set = True
+
+    @property
+    def set(self) -> bool:
+        return self._set
+
+    @property
+    def default(self) -> bool:
+        # noinspection PyTypeChecker
+        return self._default
+
+    @property
+    def and_change(self):
+        return self._and_change
+
+    def reset(self):
+        self._set = False
+        self._value = self._default
+
+    def change(self, new_value: SetBool):
+        if self.set:
+            if self._and_change:
+                self.value = self.value and new_value.value
+            else:
+                self.value = self.value or new_value.value
+        else:
+            self.value = new_value.value
+
+    def __bool__(self):
+        return self._value
+
+    def __int__(self):
+        return 1 if self._value else 0
+
+    def __float__(self):
+        return float(int(self))
+
+    def __str__(self):
+        return str(self._value)
+
+    def __eq__(self, other):
+        return self._value == other
+    def __ne__(self, other):
+        return self._value != other
+    def __gt__(self, other):
+        return self._value > other
+    def __lt__(self, other):
+        return self._value < other
+    def __ge__(self, other):
+        return self._value >= other
+    def __le__(self, other):
+        return self._value <= other
 
 
 class ListensFor:
     def __init__(
             self,
             names: tuple[int | str, ...],
-            allow_recurse: bool = True,
-            throw_on_recurse_denied: bool = True,
-            straight_call_on_recurse_denied: bool = False,
-            in_use_on_instance: bool = True,
+            allow_recurse: boolean_type = True,
+            throw_on_recurse_denied: boolean_type = True,
+            straight_call_on_recurse_denied: boolean_type = False,
+            in_use_on_instance: boolean_type = True,
     ):
         self._names: tuple[int | str, ...] = names
-        self._allow_recurse: bool = allow_recurse
-        self._throw_on_recurse_denied: bool = throw_on_recurse_denied
-        self._straight_call_on_recurse_denied: bool = straight_call_on_recurse_denied
-        self._in_use_on_instance: bool = in_use_on_instance
+        self._allow_recurse = SetBool(allow_recurse, True, start_set=not allow_recurse)
+        self._throw_on_recurse_denied = SetBool(throw_on_recurse_denied, True, start_set=not throw_on_recurse_denied)
+        self._straight_call_on_recurse_denied = SetBool(straight_call_on_recurse_denied, False, start_set=bool(straight_call_on_recurse_denied))
+        self._in_use_on_instance = SetBool(in_use_on_instance, True, start_set=not in_use_on_instance)
         self._in_use = False
         self._is_default = False
 
@@ -33,35 +109,39 @@ class ListensFor:
 
     @property
     def allow_recurse(self):
-        return self._allow_recurse
+        return self._allow_recurse.value
     @allow_recurse.setter
     def allow_recurse(self, allow_recurse: bool):
         if self._is_default:
             raise RuntimeError("Cannot modify a default ListensFor.")
-        self._allow_recurse = allow_recurse
+        self._allow_recurse.value = allow_recurse
 
     @property
     def throw_on_recurse_denied(self):
-        return self._throw_on_recurse_denied
+        return self._throw_on_recurse_denied.value
     @throw_on_recurse_denied.setter
     def throw_on_recurse_denied(self, allow_recurse: bool):
         if self._is_default:
             raise RuntimeError("Cannot modify a default ListensFor.")
-        self._throw_on_recurse_denied = allow_recurse
+        self._throw_on_recurse_denied.value = allow_recurse
 
     @property
     def straight_call_on_recurse_denied(self):
-        return self._straight_call_on_recurse_denied
+        return self._straight_call_on_recurse_denied.value
     @straight_call_on_recurse_denied.setter
     def straight_call_on_recurse_denied(self, straight_call_on_recurse_denied: bool):
-        self._straight_call_on_recurse_denied = straight_call_on_recurse_denied
+        if self._is_default:
+            raise RuntimeError("Cannot modify a default ListensFor.")
+        self._straight_call_on_recurse_denied.value = straight_call_on_recurse_denied
     
     @property
     def in_use_on_instance(self):
-        return self._in_use_on_instance
+        return self._in_use_on_instance.value
     @in_use_on_instance.setter
     def in_use_on_instance(self, in_use_on_instance: bool):
-        self._in_use_on_instance = in_use_on_instance
+        if self._is_default:
+            raise RuntimeError("Cannot modify a default ListensFor.")
+        self._in_use_on_instance.value = in_use_on_instance
 
     @property
     def active(self):
@@ -72,10 +152,10 @@ class ListensFor:
             raise RuntimeError("Cannot modify a default ListensFor.")
         self.names = tuple(dict.fromkeys((*self.names, *listens_for.names)))
         if not listens_for._is_default:
-            self.allow_recurse = self.allow_recurse and listens_for.allow_recurse
-            self.throw_on_recurse_denied = self.throw_on_recurse_denied or listens_for.throw_on_recurse_denied
-            self.straight_call_on_recurse_denied = self.straight_call_on_recurse_denied or listens_for.straight_call_on_recurse_denied
-            self.in_use_on_instance = self.in_use_on_instance or listens_for.in_use_on_instance
+            self._allow_recurse.change(listens_for._allow_recurse)
+            self._throw_on_recurse_denied.change(listens_for._throw_on_recurse_denied)
+            self._straight_call_on_recurse_denied.change(listens_for._straight_call_on_recurse_denied)
+            self._in_use_on_instance.change(listens_for._in_use_on_instance)
 
 DEFAULT_LISTENS_FOR = ListensFor(tuple())
 DEFAULT_LISTENS_FOR._is_default = True
