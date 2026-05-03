@@ -5,7 +5,7 @@ from typing import Any, Callable
 from piethorn.collections.listener import GetListenerError
 from piethorn.collections.listener.event import EventBuilder
 from piethorn.collections.listener.listener import ListenerBuilder, caller_type, Listener
-from piethorn.collections.listener.listens import listens
+from piethorn.collections.listener.listens import listens, _double_wrap_prevent, ListensFor
 
 
 def _get_listens_for(value):
@@ -18,6 +18,8 @@ def _get_listens_for(value):
 def _has_func_listens(func) -> bool:
     return _get_listens_for(func) is not None
 
+def _has_func_wrapper(func):
+    return getattr(func, "__listens_wrapped__", False)
 
 def _find_inherited_member_with_listens(cls, name):
     """
@@ -49,61 +51,97 @@ def _member_has_listens(value):
 
     return _has_func_listens(value)
 
+def _get_inherited_listens(inherited):
+    if inherited is None:
+        return None
+    if isinstance(inherited, property):
+        if _has_func_listens(inherited.fget):
+            inherited_func = inherited.fget
+        elif _has_func_listens(inherited.fset):
+            inherited_func = inherited.fset
+        elif _has_func_listens(inherited.fdel):
+            inherited_func = inherited.fdel
+        else:
+            inherited_func = inherited
+    elif isinstance(inherited, (staticmethod, classmethod)):
+        inherited_func = inherited.__func__
+    else:
+        inherited_func = inherited
+    listens_for = ListensFor(tuple())
+    listens_for2 = _get_listens_for(inherited_func)
+    if listens_for2 is not None:
+        listens_for.merge(listens_for2)
+    if inherited_func is not inherited:
+        if _has_func_listens(inherited):
+            listens_for2 = _get_listens_for(inherited)
+            if listens_for2 is not None:
+                listens_for.merge(listens_for2)
+
+    if listens_for2 is None:
+        return None
+    return listens_for
 
 def _copy_missing_listens(value, inherited):
     """
     Applies @listens(...) while preserving descriptor type.
     """
-    if isinstance(value, property) and isinstance(inherited, property):
-        fget = _copy_missing_accessor_listens(value.fget, inherited.fget)
-        fset = _copy_missing_accessor_listens(value.fset, inherited.fset)
-        fdel = _copy_missing_accessor_listens(value.fdel, inherited.fdel)
+    if isinstance(value, property):
+        infget = None
+        infset = None
+        infdel = None
+        if isinstance(inherited, property):
+            infget = _get_inherited_listens(inherited.fget)
+            infset = _get_inherited_listens(inherited.fset)
+            infdel = _get_inherited_listens(inherited.fdel)
+        else:
+            infget = _get_inherited_listens(inherited)
+        if infget is None:
+            infget = _get_listens_for(value)
+        else:
+            if _has_func_listens(value):
+                infget.merge(_get_listens_for(value))
+        fget = _copy_missing_accessor_listens(value.fget, infget)
+        fset = _copy_missing_accessor_listens(value.fset, infset)
+        fdel = _copy_missing_accessor_listens(value.fdel, infdel)
 
         if fget is value.fget and fset is value.fset and fdel is value.fdel:
             return value
 
-        return property(
+        return type(value)(
             fget,
             fset,
             fdel,
             value.__doc__,
         )
 
-    if isinstance(value, (staticmethod, classmethod)) and isinstance(inherited, (staticmethod, classmethod)):
+    if isinstance(value, (staticmethod, classmethod)):
         func = value.__func__
-        inherited_func = inherited.__func__
-
-        inherited_listens = _get_listens_for(inherited_func)
-
-        if inherited_listens is not None and not _has_func_listens(func):
-            new_method = listens(*inherited_listens)(func)
-            if isinstance(value, staticmethod):
-                return staticmethod(new_method)
-            elif isinstance(value, classmethod):
-                return classmethod(new_method)
+        new_method = _copy_missing_accessor_listens(func, _get_inherited_listens(inherited))
+        if new_method is not None:
+            if _has_func_listens(value):
+                new_method = _double_wrap_prevent(new_method, _get_listens_for(value))
+            if new_method is not func:
+                return type(value)(new_method)
 
     if not isinstance(value, (property, staticmethod, classmethod)):
-        inherited_listens = _get_listens_for(inherited)
-
-        if inherited_listens is not None and not _has_func_listens(value):
-            return listens(*inherited_listens)(value)
+        new_method = _copy_missing_accessor_listens(value, _get_inherited_listens(inherited))
+        if new_method is not None:
+            return new_method
 
     return value
 
 
-def _copy_missing_accessor_listens(func, inherited_func):
+def _copy_missing_accessor_listens(func, inherited_listens):
     if func is None:
         return None
-
-    inherited_listens = _get_listens_for(inherited_func)
 
     if inherited_listens is None:
         return func
 
-    if _has_func_listens(func):
-        return func
+    if _has_func_wrapper(func):
+        return _double_wrap_prevent(func, inherited_listens)
 
-    return listens(*inherited_listens)(func)
+    return listens(inherited_listens_for=inherited_listens)(func)
 
 
 class Listenable:
