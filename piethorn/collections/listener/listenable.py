@@ -5,7 +5,7 @@ from typing import Any, Callable
 from piethorn.collections.listener import GetListenerError
 from piethorn.collections.listener.event import EventBuilder
 from piethorn.collections.listener.listener import ListenerBuilder, caller_type, Listener
-from piethorn.collections.listener.listens import listens, _double_wrap_prevent, ListensFor
+from piethorn.collections.listener.listens import listens, _double_wrap_prevent, ListensFor, system_listens
 
 
 def _get_listens_for(value):
@@ -187,6 +187,7 @@ class Listenable:
         """Gets the count of ``Listener``s this ``Listenable`` has."""
         return  len(self.__listeners__)
 
+    @system_listens("get_listener")
     def get_listener(self, name: int | str) -> Listener:
         """
         Gets a ``Listener`` for use.
@@ -204,6 +205,7 @@ class Listenable:
         """
         return self.__listeners__.has(name)
 
+    @system_listens("add_listener")
     def add_listener(self, name: int | str, caller: caller_type):
         """
         Adds a function to a ``Listener``.
@@ -216,7 +218,7 @@ class Listenable:
         else:
             self.get_listener(name).add(caller)
 
-
+    @system_listens("remove_listener")
     def remove_listener(self, name: int | str, caller):
         """
         Removes a function from a ``Listener``.
@@ -227,6 +229,7 @@ class Listenable:
         """
         self.get_listener(name).remove(caller)
 
+    @system_listens("event_trigger")
     def event_trigger(self, name: int | str, args: tuple, kwargs: dict, returned: Any, called_method: Callable):
         """
         Triggers the ``Listener.use()`` method for the listener with the given name.

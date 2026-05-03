@@ -105,7 +105,8 @@ def listens(
 
     ``throw_on_recurse_denied``: This is used to signal if a ``RecursionError``
     should be fired when caught in event running when the function is called
-    and that ``allow_recurse`` is ``False``.
+    and that ``allow_recurse`` is ``False``. If ``throw_on_recurse_denied``
+    is ``False``, then the value returned by the wrapped function will be ``None``.
 
     :param listens_for_names: The names of each listener that will be triggered on use of the decorated method.
     :param allow_recurse: Whether to allow for recursion.
@@ -181,3 +182,12 @@ def listens(
         return wrapper
 
     return decorator
+
+def system_listens(*names: int | str):
+    """
+    This decorator should be used for when listening to
+    methods in the listener system. For example: ``Listenable.get_listeners()``.
+    :param names: The names of each listener that will be triggered on use of the decorated method.
+    :return:
+    """
+    return listens(*names, allow_recurse=False, throw_on_recurse_denied=False)
