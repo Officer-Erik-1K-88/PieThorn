@@ -71,10 +71,20 @@ class Listener:
         :param called_method:
         :return:
         """
+        def flag_end_current(event):
+            if event.end_current:
+                event._end_current = False
+                return True
+            return False
+        def flag_end_chain(event, contin):
+            if event.end_chain or contin is False:
+                return True
+            return False
         try:
             for calling in self.__callers__:
                 if not callable(calling):
                     continue
+                flag_break = False
 
                 try:
                     if not self._event_builder.static:
@@ -88,18 +98,32 @@ class Listener:
                     finally:
                         caller_event._in_use = False
 
-                    if caller_event.end_chain or cont is False:
+                    flag_continue = flag_end_current(caller_event)
+                    flag_break = flag_end_chain(caller_event, cont)
+
+                    if flag_break:
                         break
+                    if flag_continue:
+                        continue
                 except EventEnd as e:
                     e.event._in_use = False
-                    if e.event.end_chain:
+                    flag_continue = flag_end_current(e.event)
+                    flag_break = flag_end_chain(e.event, True)
+                    if flag_break:
                         break
+                    if flag_continue:
+                        continue
+
+                if flag_break:
+                    break
         finally:
             self._event_builder.clear_event()
 
     def __call__(self, event: Event) -> bool:
         """
         A ``Listener`` callable so that they can be passed as a ``caller_type``.
+
+        If ``event.end_current`` is ``True``, then will end the caller chain.
 
         :param event: The event from the calling ``Listener``.
         :return: Whether the calling listener should continue its caller chain.
@@ -108,7 +132,7 @@ class Listener:
         for calling in self.__callers__:
             if callable(calling):
                 cont = calling(event)
-                if cont is False:
+                if event.end_current or cont is False:
                     break
         return cont
 
