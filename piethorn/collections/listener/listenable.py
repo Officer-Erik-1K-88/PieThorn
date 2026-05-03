@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from piethorn.collections.listener import GetListenerError
 from piethorn.collections.listener.event import EventBuilder
 from piethorn.collections.listener.listener import ListenerBuilder, caller_type, Listener
 from piethorn.collections.listener.listens import listens
@@ -120,19 +121,32 @@ class Listenable:
             if new_value is not value:
                 setattr(cls, name, new_value)
 
-    def __init__(self, *named: str, listener_builder: ListenerBuilder | None = None):
+    def __init__(self, *named: str, listener_builder: ListenerBuilder | None = None, auto_create: bool = False):
         """
 
         :param named: The names of each event listener to be created.
+        :param listener_builder: The ``ListenerBuilder`` that stores and creates the ``Listener``s.
+        :param auto_create: Whether to automatically create a ``Listener`` when one doesn't exist, but a ``caller_type`` is being added to it.
         """
         self.__listeners__: ListenerBuilder = listener_builder if listener_builder is not None else ListenerBuilder()
         self.__listeners__._listenable = self
+        self._auto_create = auto_create
 
         for name in named:
             self.__listeners__.add(name)
 
     @property
+    def auto_create(self) -> bool:
+        """
+        Defines if ``Listener``s are automatically created
+        when ``add_listener()`` is used to add a ``caller_type``
+        to a nonexistent ``Listener``.
+        """
+        return self._auto_create
+
+    @property
     def listener_count(self):
+        """Gets the count of ``Listener``s this ``Listenable`` has."""
         return  len(self.__listeners__)
 
     def get_listener(self, name: int | str) -> Listener:
@@ -145,6 +159,11 @@ class Listenable:
         return self.__listeners__.get(name)
 
     def has_listener(self, name: int | str) -> bool:
+        """
+        Checks to see if a ``Listener`` with the provided name exists.
+        :param name: The name of the ``Listener`` to check.
+        :return:
+        """
         return self.__listeners__.has(name)
 
     def add_listener(self, name: int | str, caller: caller_type):
@@ -154,7 +173,11 @@ class Listenable:
         :param name: The name of the ``Listener`` to add a caller to.
         :param caller: The function to call when it's ``listener``'s use method is called.
         """
-        self.get_listener(name).add(caller)
+        if self.auto_create:
+            self.__listeners__.add(name, replace=False).add(caller)
+        else:
+            self.get_listener(name).add(caller)
+
 
     def remove_listener(self, name: int | str, caller):
         """
@@ -167,22 +190,50 @@ class Listenable:
         self.get_listener(name).remove(caller)
 
     def event_trigger(self, name: int | str, args: tuple, kwargs: dict, returned: Any, called_method: Callable):
+        """
+        Triggers the ``Listener.use()`` method for the listener with the given name.
+
+        :param name: The name of the ``Listener`` to trigger.
+        :param args: The original arguments passed that were passed to the ``called_method``.
+        :param kwargs: The original keyword arguments passed that were passed to the ``called_method``.
+        :param returned: The value returned by ``called_method`` when passed ``args`` and ``kwargs``
+        :param called_method: The method that triggered the ``Event``
+        :return:
+        """
         self.get_listener(name).use(args, kwargs, returned, called_method)
 
 
 class ListenerHolder(Listenable):
-    def __init__(self, *named: str, listener_builder: ListenerBuilder | None = None):
+    def __init__(self, *named: str, listener_builder: ListenerBuilder | None = None, auto_create: bool = False):
         """
 
         :param event_count: The number of unnamed events.
         :param named: The names of each event listener to be created.
         """
-        super().__init__(*named, listener_builder=listener_builder)
+        super().__init__(*named, listener_builder=listener_builder, auto_create=auto_create)
 
     def create(self, name: int | str, event_builder: EventBuilder | None = None, *, replace: bool = False):
+        """
+        Creates a new ``Listener`` with the given ``name`` and ``event_builder``.
+
+        If a ``Listener`` with the given ``name`` already exists
+        and ``replace`` is ``False``, then this method is the same as ``get_listener()``.
+
+        :param name: The name of the listener. If name is an integer, then the name is set as ``event_{name}``.
+        :param event_builder: The ``EventBuilder`` object that will be used to create the ``Event``s of the listener.
+        :param replace: Whether to replace the existing listener if one exists.
+        :return: The new ``Listener`` object.
+        """
         return self.__listeners__.add(name, event_builder, replace=replace)
 
     def remove(self, name: int | str, default=None):
+        """
+        Removes the listener with the given ``name``.
+
+        :param name: The name of the listener. If name is an integer, then ``event_{name}`` is checked.
+        :param default: The default value to return if the listener does not exist.
+        :return:
+        """
         return self.__listeners__.remove(name, default)
 
     def __getitem__(self, item: int | str):
@@ -195,4 +246,4 @@ class ListenerHolder(Listenable):
         return iter(self.__listeners__)
 
 
-GLOBAL_LISTENERS = ListenerHolder()
+GLOBAL_LISTENERS = ListenerHolder(auto_create=True)

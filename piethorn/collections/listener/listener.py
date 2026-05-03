@@ -137,14 +137,30 @@ class Listener:
         return cont
 
     def add(self, caller: caller_type):
+        """
+        Add a ``caller`` to this ``Listener``'s caller chain.
+
+        :param caller: The method to add.
+        :return:
+        """
         if not callable(caller):
             raise TypeError("Cannot add a caller that isn't callable.")
         self.__callers__.append(caller)
 
     def get(self, index: int):
+        """
+        Get an item from this ``Listener``'s caller chain.
+        :param index: The index of the item to get.
+        :return: The requested item.
+        """
         return self.__callers__[index]
 
     def remove(self, caller):
+        """
+        Remove a ``caller`` from this ``Listener``'s caller chain.
+        :param caller: The method to remove.
+        :return:
+        """
         self.__callers__.remove(caller)
 
     def __len__(self):
@@ -229,9 +245,31 @@ class ListenerBuilder:
         return self.__listeners__.has_key(_listener_name(name))
 
     def build(self, name: int | str, event_builder: EventBuilder | None=None):
+        """
+        Builds a ``Listener`` with the given ``name`` and ``event_builder``.
+
+        The created ``Listener`` object is not added to this ``ListenerBuilder`` object.
+        To create on that is added to this ``ListenerBuilder`` object,
+        refer to ``ListenerBuilder.add()``.
+
+        :param name: The name of the listener. If name is an integer, then the name is set as ``event_{name}``.
+        :param event_builder: The ``EventBuilder`` object that will be used to create the ``Event``s of the listener.
+        :return: The new ``Listener`` object.
+        """
         return Listener(name, event_builder if event_builder is not None else self._event_builder)
 
     def add(self, name: int | str, event_builder: EventBuilder | None=None, *, replace: bool = False):
+        """
+        Creates a new ``Listener`` with the given ``name`` and ``event_builder``.
+
+        If a ``Listener`` with the given ``name`` already exists
+        and ``replace`` is ``False``, then this method is the same as ``get()``.
+
+        :param name: The name of the listener. If name is an integer, then the name is set as ``event_{name}``.
+        :param event_builder: The ``EventBuilder`` object that will be used to create the ``Event``s of the listener.
+        :param replace: Whether to replace the existing listener if one exists.
+        :return: The new ``Listener`` object.
+        """
         listener = self.build(name, event_builder)
         if not replace and listener.name in self.__listeners__:
             return self.__listeners__[listener.name]
@@ -240,6 +278,13 @@ class ListenerBuilder:
         return listener
 
     def pop(self, index: int, default=None):
+        """
+        Removed the listener at ``index``.
+
+        :param index: The index of the listener to remove.
+        :param default: The default value to return if the listener does not exist.
+        :return:
+        """
         try:
             listener = self.at(index)
         except GetListenerError:
@@ -248,6 +293,13 @@ class ListenerBuilder:
             return self.remove(listener.name, default)
 
     def remove(self, name: int | str, default=None):
+        """
+        Removes the listener with the given ``name``.
+
+        :param name: The name of the listener. If name is an integer, then ``event_{name}`` is checked.
+        :param default: The default value to return if the listener does not exist.
+        :return:
+        """
         return self.__listeners__.pop(_listener_name(name), default)
 
     def __len__(self):
