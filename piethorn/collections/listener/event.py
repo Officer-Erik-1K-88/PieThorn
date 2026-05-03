@@ -150,14 +150,8 @@ class Event:
         :raises EventEnd: When ``force`` is ``True``.
         :return:
         """
-        try:
-            self.stop_current(force=force)
-        except EventEnd:
-            pass
-        try:
-            self.stop_chain(force=force)
-        except EventEnd:
-            pass
+        self._end_current = True
+        self._end_chain = True
         if force:
             raise EventEnd(self)
 

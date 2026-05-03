@@ -186,7 +186,7 @@ class Listenable:
         """Gets the count of ``Listener``s this ``Listenable`` has."""
         return  len(self.__listeners__)
 
-    @system_listens("get_listener")
+    @system_listens("get_listener", straight_call_on_recurse_denied=True)
     def get_listener(self, name: int | str) -> Listener:
         """
         Gets a ``Listener`` for use.

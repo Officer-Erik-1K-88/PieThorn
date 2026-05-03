@@ -11,11 +11,13 @@ class ListensFor:
             names: tuple[int | str, ...],
             allow_recurse: bool = True,
             throw_on_recurse_denied: bool = True,
+            straight_call_on_recurse_denied: bool = False,
             in_use_on_instance: bool = True,
     ):
-        self._names = names
+        self._names: tuple[int | str, ...] = names
         self._allow_recurse: bool = allow_recurse
         self._throw_on_recurse_denied: bool = throw_on_recurse_denied
+        self._straight_call_on_recurse_denied: bool = straight_call_on_recurse_denied
         self._in_use_on_instance: bool = in_use_on_instance
         self._in_use = False
         self._is_default = False
@@ -46,6 +48,13 @@ class ListensFor:
         if self._is_default:
             raise RuntimeError("Cannot modify a default ListensFor.")
         self._throw_on_recurse_denied = allow_recurse
+
+    @property
+    def straight_call_on_recurse_denied(self):
+        return self._straight_call_on_recurse_denied
+    @straight_call_on_recurse_denied.setter
+    def straight_call_on_recurse_denied(self, straight_call_on_recurse_denied: bool):
+        self._straight_call_on_recurse_denied = straight_call_on_recurse_denied
     
     @property
     def in_use_on_instance(self):
@@ -65,6 +74,7 @@ class ListensFor:
         if not listens_for._is_default:
             self.allow_recurse = self.allow_recurse and listens_for.allow_recurse
             self.throw_on_recurse_denied = self.throw_on_recurse_denied or listens_for.throw_on_recurse_denied
+            self.straight_call_on_recurse_denied = self.straight_call_on_recurse_denied or listens_for.straight_call_on_recurse_denied
             self.in_use_on_instance = self.in_use_on_instance or listens_for.in_use_on_instance
 
 DEFAULT_LISTENS_FOR = ListensFor(tuple())
@@ -81,6 +91,7 @@ def listens(
         *listens_for_names: int | str,
         allow_recurse: bool=DEFAULT_LISTENS_FOR.allow_recurse,
         throw_on_recurse_denied: bool=DEFAULT_LISTENS_FOR.throw_on_recurse_denied,
+        straight_call_on_recurse_denied: bool=DEFAULT_LISTENS_FOR.straight_call_on_recurse_denied,
         in_use_on_instance: bool=DEFAULT_LISTENS_FOR.in_use_on_instance,
         inherited_listens_for: ListensFor = DEFAULT_LISTENS_FOR
 ):
@@ -115,7 +126,7 @@ def listens(
     ```
 
     There is recursion protection. This is to prevent triggering the listener events while
-    still in the process of running said events. Because of this, there are two settings:
+    still in the process of running said events. Because of this, there are three settings:
 
     ``allow_recurse``: This is used to prevent the wrapped function from firing.
 
@@ -124,10 +135,16 @@ def listens(
     and that ``allow_recurse`` is ``False``. If ``throw_on_recurse_denied``
     is ``False``, then the value returned by the wrapped function will be ``None``.
 
+    ``straight_call_on_recurse_denied``: This is the alternative to when ``None`` is
+    returned. This should give the same functionality for when ``allow_recurse`` is
+    ``True``, but having this as ``True`` and ``allow_recurse`` as ``False`` is
+    faster than having ``allow_recurse`` as ``True``.
+
     :param listens_for_names: The names of each listener that will be triggered on use of the decorated method.
     :param allow_recurse: Whether to allow for recursion.
     :param throw_on_recurse_denied: Whether to raise a ``RecursionError`` when ``allow_recurse`` is ``False`` and is in recursion.
-    :param in_use_on_instance: Whether to store in use data on the instance.
+    :param straight_call_on_recurse_denied: Whether to call the wrapped function instead of returning ``None`` on recurse denied.
+    :param in_use_on_instance: Whether to store in use data on the instance. It is recommended that this is ``False`` for when on static methods. Defaults to ``True``.
     :param inherited_listens_for: The ``ListensFor`` instance to inherit information from.
     :return:
     """
@@ -135,6 +152,7 @@ def listens(
         names=tuple(_listener_name(name) for name in listens_for_names),
         allow_recurse=allow_recurse,
         throw_on_recurse_denied=throw_on_recurse_denied,
+        straight_call_on_recurse_denied=straight_call_on_recurse_denied,
         in_use_on_instance=in_use_on_instance,
     )
     listens_for.merge(inherited_listens_for)
@@ -151,12 +169,15 @@ def listens(
             lf = getattr(wrapper, "__listens_for__", listens_for)
             instance_or_cls = args[0] if args else None
 
-            active_store_place = f"__listens_{func.__name__}_active__"
-            active = lf.active if instance_or_cls is None else getattr(instance_or_cls, active_store_place, lf.active)
+            active_store_place = f"__listens_{id(wrapper)}_active__"
+            if lf.in_use_on_instance and instance_or_cls is not None:
+                active = getattr(instance_or_cls, active_store_place, False)
+            else:
+                active = lf.active
             if active and not lf.allow_recurse:
                 if lf.throw_on_recurse_denied:
                     raise RecursionError("Recursion not allowed on method '%s'." % func.__name__)
-                return None
+                return func(*args, **kwargs) if lf.straight_call_on_recurse_denied else None
 
             first_arg_normal = True
             if isinstance(instance_or_cls, Listenable):
@@ -208,11 +229,22 @@ def listens(
 
     return decorator
 
-def system_listens(*names: int | str):
+def system_listens(
+        *names: int | str,
+        throw_on_recurse_denied: bool=False,
+        straight_call_on_recurse_denied: bool=False,
+):
     """
     This decorator should be used for when listening to
     methods in the listener system. For example: ``Listenable.get_listeners()``.
     :param names: The names of each listener that will be triggered on use of the decorated method.
+    :param throw_on_recurse_denied: Whether to raise a ``RecursionError`` when ``allow_recurse`` is ``False`` and is in recursion.
+    :param straight_call_on_recurse_denied: Whether to call the wrapped function instead of returning ``None`` on recurse denied.
     :return:
     """
-    return listens(*names, allow_recurse=False, throw_on_recurse_denied=False)
+    return listens(
+        *names,
+        allow_recurse=False,
+        throw_on_recurse_denied=throw_on_recurse_denied,
+        straight_call_on_recurse_denied=straight_call_on_recurse_denied
+    )
