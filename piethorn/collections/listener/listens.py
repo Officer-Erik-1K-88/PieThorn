@@ -109,6 +109,7 @@ class ListensFor:
         self._straight_call_on_recurse_denied = SetBool(straight_call_on_recurse_denied, False, start_set=bool(straight_call_on_recurse_denied))
         self._in_use_on_instance = SetBool(in_use_on_instance, True, start_set=not in_use_on_instance)
         self._in_use = False
+        self._instance_in_uses: dict[str, bool] = {}
         self._is_default = False
 
     @property
@@ -159,6 +160,13 @@ class ListensFor:
     @property
     def active(self):
         return self._in_use
+    @active.setter
+    def active(self, active: bool):
+        self._in_use = active
+
+    @property
+    def instance_in_uses(self):
+        return self._instance_in_uses
 
     def merge(self, listens_for: ListensFor):
         if self._is_default:
@@ -169,6 +177,7 @@ class ListensFor:
             self._throw_on_recurse_denied.change(listens_for._throw_on_recurse_denied)
             self._straight_call_on_recurse_denied.change(listens_for._straight_call_on_recurse_denied)
             self._in_use_on_instance.change(listens_for._in_use_on_instance)
+
 
 DEFAULT_LISTENS_FOR = ListensFor(tuple())
 DEFAULT_LISTENS_FOR._is_default = True
@@ -262,9 +271,9 @@ def listens(
             lf = getattr(wrapper, "__listens_for__", listens_for)
             instance_or_cls = args[0] if args else None
 
-            active_store_place = f"__listens_{id(wrapper)}_active__"
-            if lf.in_use_on_instance and instance_or_cls is not None:
-                active = getattr(instance_or_cls, active_store_place, False)
+            active_store_place = f"{func.__name__}_{id(wrapper)}"
+            if lf.in_use_on_instance:
+                active = lf.instance_in_uses.get(active_store_place, False)
             else:
                 active = lf.active
             if active and not lf.allow_recurse:
@@ -289,9 +298,9 @@ def listens(
             return_value = called_method(*real_args, **kwargs)
 
             if not active:
-                lf._in_use = True
-                if lf.in_use_on_instance and instance_or_cls is not None:
-                    setattr(instance_or_cls, active_store_place, True)
+                lf.active = True
+                if lf.in_use_on_instance:
+                    lf.instance_in_uses[active_store_place] = True
                 try:
                     for name in lf.names:
                         if listenable.has_listener(name):
@@ -311,9 +320,9 @@ def listens(
                                 called_method
                             )
                 finally:
-                    lf._in_use = False
-                    if lf.in_use_on_instance and instance_or_cls is not None:
-                        setattr(instance_or_cls, active_store_place, False)
+                    lf.active = False
+                    if lf.in_use_on_instance:
+                        lf.instance_in_uses[active_store_place] = False
             return return_value
 
         wrapper.__listens_for__ = listens_for

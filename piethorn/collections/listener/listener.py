@@ -193,6 +193,11 @@ class ListenerBuilder:
         """
         Gets the listener at ``name``.
 
+        This method has an index fallback for when
+        the checked name has the pattern of ``event_[0-9]+``,
+        the number that proceeds ``event_`` would be deemed
+        as the index.
+
         :param name: The name of the listener. If name is an integer, then ``event_{name}`` is checked.
         :raises GetListenerError: If there is no listener with ``name``.
         :return:

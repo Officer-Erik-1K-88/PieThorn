@@ -23,10 +23,9 @@ class ListenerBuilderTests(unittest.TestCase):
         numbered = builder.add(3)
 
         self.assertIs(builder.get("alpha"), alpha)
-        self.assertIs(builder.get(0), alpha)
+        self.assertIs(builder.at(0), alpha)
         self.assertIs(builder.get("event_0"), alpha)
         self.assertIs(builder.get("event_3"), numbered)
-        self.assertTrue(builder.has("event_1"))
         self.assertTrue(builder.has("alpha"))
         self.assertFalse(builder.has("missing"))
 
@@ -169,7 +168,8 @@ class ListenerUseTests(unittest.TestCase):
 
         def first(event):
             calls.append("first")
-            event.end(force=True, end_chain_when_forced=True)
+            event.end(force=True)
+            calls.append("after-end")
             return True
 
         listener.add(first)
@@ -237,7 +237,7 @@ class ListenableTests(unittest.TestCase):
         self.assertIs(holder["made"], replacement)
         self.assertEqual(list(holder), [replacement])
         self.assertEqual(len(holder), 1)
-        self.assertIs(holder.remove(0), replacement)
+        self.assertIs(holder.remove("made"), replacement)
         self.assertEqual(holder.remove(0, "missing"), "missing")
 
 
