@@ -8,6 +8,7 @@ focused and easy to scan.
    :maxdepth: 2
 
    collections/char
+   collections/listener
    collections/mapping
    collections/range
    collections/views

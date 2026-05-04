@@ -4,6 +4,7 @@ import unittest
 from piethorn.typing.argument import Argument as TypedArgument
 from piethorn.typing.argument import ArgumentKind, Arguments as TypedArguments
 from piethorn.typing.analyze import Argument, Arguments, analyze
+from piethorn.typing.flag import SetBool
 
 
 def sample_signature(a, /, b: int, *args, c=3, **kwargs) -> str:
@@ -73,6 +74,17 @@ class AnalyzeModuleTests(unittest.TestCase):
     def test_analyze_arguments_reject_invalid_iterable_members(self):
         with self.assertRaisesRegex(TypeError, "inspect.Parameter or Argument"):
             Arguments([object()])
+
+class FlagModuleTests(unittest.TestCase):
+    def test_set_bool_change_honors_and_or_modes(self):
+        and_mode = SetBool(False, default=True, start_set=True)
+        and_mode.change(SetBool(True, default=True, start_set=True))
+
+        or_mode = SetBool(False, default=False, and_change=False, start_set=True)
+        or_mode.change(SetBool(True, default=False, start_set=True))
+
+        self.assertFalse(and_mode)
+        self.assertTrue(or_mode)
 
 
 if __name__ == "__main__":

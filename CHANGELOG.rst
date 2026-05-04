@@ -22,6 +22,14 @@ but has yet to be released as a version.
 
 Changes:
 
+* Added listener package API documentation and a listener usage guide.
+* Added listener package docstrings.
+* Added ``SetBool`` flag helper for merging explicit and default boolean configuration.
+* Added listener system tests and ``SetBool`` typing module coverage.
+* Added listener dispatch controls for stopping the current callback chain, stopping nested listener chains, force-ending events, and protecting against recursive listener dispatch.
+* Added ``ListenerSequence`` and ``MutableListenerSequence`` abstract sequence bases that emit listener events for get, add, set, and remove operations.
+* Added global listener fallback support and automatic listener creation support for listenable objects.
+* Added ``piethorn.collections.listener`` event listener framework with ``Listenable``, ``Listener``, ``Event``, ``EventBuilder``, ``ListenerBuilder``, and ``listens``.
 * Fixed documentation pages version switcher to order correctly.
 * Added environment to ``release.yml`` workflow.
 
