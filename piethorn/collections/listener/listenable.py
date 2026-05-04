@@ -195,7 +195,7 @@ class Listenable:
         Create a listenable object with the given listener names.
 
         :param named: The names of each event listener to be created.
-        :param listener_builder: The ``ListenerBuilder`` that stores and creates the ``Listener``s.
+        :param listener_builder: The ``ListenerBuilder`` that stores and creates ``Listener`` objects.
         :param auto_create: Whether to automatically create a ``Listener`` when one doesn't exist, but a ``caller_type`` is being added to it.
         """
         self.__listeners__: ListenerBuilder = listener_builder if listener_builder is not None else ListenerBuilder()
@@ -293,8 +293,8 @@ class ListenerHolder(Listenable):
         Existing listeners are reused when ``replace`` is ``False``. Passing
         ``replace=True`` overwrites the existing listener.
 
-        :param name: The name of the listener. If name is an integer, then the name is set as ``event_{name}``.
-        :param event_builder: The ``EventBuilder`` object that will be used to create the ``Event``s of the listener.
+        :param name: The name of the listener. If name is an integer, then the name is set as ``event_`` followed by that integer.
+        :param event_builder: The ``EventBuilder`` object that will be used to create ``Event`` objects for the listener.
         :param replace: Whether to replace the existing listener if one exists.
         :return: The new ``Listener`` object.
         """

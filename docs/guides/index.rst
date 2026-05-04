@@ -6,6 +6,7 @@ Guides
 
    collections
    filehandle
+   listeners
    logging
    math
    typing

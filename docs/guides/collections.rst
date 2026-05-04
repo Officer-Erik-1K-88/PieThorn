@@ -39,6 +39,20 @@ Use it when you need:
 * list-style indexed access to keys and values
 * an object that still behaves like a mutable mapping
 
+Listeners
+---------
+
+The :mod:`piethorn.collections.listener` package provides callback chains that
+can be attached to method calls. Use :class:`~piethorn.collections.listener.Listenable`
+for objects that own named listeners and :func:`~piethorn.collections.listener.listens`
+to decorate methods that should emit events.
+
+Listener callbacks receive an :class:`~piethorn.collections.listener.Event`
+object containing the decorated call's arguments, keyword arguments, return
+value, and originating method.
+
+See :doc:`listeners` for a focused guide.
+
 Views
 -----
 

@@ -282,8 +282,8 @@ class ListenerBuilder:
 
         Use ``add`` when the listener should be stored in this registry.
 
-        :param name: The name of the listener. If name is an integer, then the name is set as ``event_{name}``.
-        :param event_builder: The ``EventBuilder`` object that will be used to create the ``Event``s of the listener.
+        :param name: The name of the listener. If name is an integer, then the name is set as ``event_`` followed by that integer.
+        :param event_builder: The ``EventBuilder`` object that will be used to create ``Event`` objects for the listener.
         :return: The new ``Listener`` object.
         """
         return Listener(name, event_builder if event_builder is not None else self._event_builder)
@@ -295,8 +295,8 @@ class ListenerBuilder:
         Existing listeners are reused when ``replace`` is ``False``. Passing
         ``replace=True`` creates a new listener and overwrites the old entry.
 
-        :param name: The name of the listener. If name is an integer, then the name is set as ``event_{name}``.
-        :param event_builder: The ``EventBuilder`` object that will be used to create the ``Event``s of the listener.
+        :param name: The name of the listener. If name is an integer, then the name is set as ``event_`` followed by that integer.
+        :param event_builder: The ``EventBuilder`` object that will be used to create ``Event`` objects for the listener.
         :param replace: Whether to replace the existing listener if one exists.
         :return: The new ``Listener`` object.
         """

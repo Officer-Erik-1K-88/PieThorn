@@ -188,7 +188,7 @@ class EventBuilder:
         """
         Create a builder that controls event reuse for a listener.
 
-        :param listener: The ``Listener`` that this ``EventBuilder`` creates ``Event``s for
+        :param listener: The ``Listener`` that this ``EventBuilder`` creates ``Event`` objects for.
         :param static: Whether to reuse one event until ``clear_event`` is called.
         :param copies_to_new: Whether ``new_listener()`` returns a copied builder.
         """
