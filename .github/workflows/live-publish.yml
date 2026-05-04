@@ -14,7 +14,7 @@ on:
 
 jobs:
   publish:
-    uses: Officer-Erik-1K-88/ThornForge/./.github/workflows/publish.yml@main
+    uses: Officer-Erik-1K-88/ThornForge/.github/workflows/publish.yml@main
     with:
       thornforge-ref: "main"
       gitrelease: ${{ github.event_name == 'push' || inputs.gitrelease }}

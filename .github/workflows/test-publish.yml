@@ -8,7 +8,7 @@ on:
 
 jobs:
   publish:
-    uses: Officer-Erik-1K-88/ThornForge/./.github/workflows/publish.yml@main
+    uses: Officer-Erik-1K-88/ThornForge/.github/workflows/publish.yml@main
     with:
       gitrelease: false
       thornforge-ref: "main"
