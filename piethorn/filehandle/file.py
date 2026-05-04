@@ -1,5 +1,6 @@
 import codecs
 import os
+import shutil
 import tempfile
 import time
 from contextlib import contextmanager
@@ -407,6 +408,7 @@ class File(BasePath):
         """
         with self.locked():
             self._write_data_check(data, binary)
+            self._ensure_parent()
 
             tmp_path: File | None = None
             if self.options.atomic_write and not self.is_temp:
@@ -414,9 +416,6 @@ class File(BasePath):
 
             try:
                 target = tmp_path if tmp_path is not None else self
-
-                if target is self:
-                    self._ensure_parent()
 
                 self.make_backup(pass_errors=True)
 
@@ -486,6 +485,10 @@ class File(BasePath):
 
             is_binary = "b" in mode
             enc = encoding or self.options.encoding
+            self._ensure_parent()
+
+            if "x" in mode and self.exists():
+                raise FileExistsError(f"File '{self.path}' already exists.")
 
             # Normalize data into an iterable of "chunks"
             # (each chunk is either FileChunk or raw payload)
@@ -497,21 +500,23 @@ class File(BasePath):
             tmp_path: File | None = None
             if self.options.atomic_write and not self.is_temp:
                 tmp_path = self.make_temp()
+                if "a" in mode and self.exists():
+                    shutil.copy2(self.path, tmp_path.path)
 
             total_bytes = 0
 
             try:
                 target = tmp_path if tmp_path is not None else self
-
-                if target is self:
-                    self._ensure_parent()
+                target_mode = mode
+                if tmp_path is not None and "x" in target_mode:
+                    target_mode = target_mode.replace("x", "w", 1)
 
                 # Best-effort backup of the original before we mutate/replace it.
                 # (Only once.)
                 self.make_backup(pass_errors=True)
 
                 with target.open(
-                    mode=mode,
+                    mode=target_mode,
                     encoding=enc,
                     newline=newline,
                 ) as f:

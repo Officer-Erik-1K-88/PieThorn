@@ -48,7 +48,8 @@ class File:
         if os.path.isdir(self._file_path):
             for f in os.listdir(self._file_path):
                 try:
-                    self._children.add(File(f, parent=self, sisters=self._children))
+                    child_path = os.path.join(self._file_path, f)
+                    self._children.add(File(child_path, parent=self, sisters=self._children))
                 except ValueError:
                     pass
 

@@ -3,6 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from piethorn.filehandle import File as PathFile
+from piethorn.filehandle import JsonFile, JsonFileOptions
 from piethorn.filehandle.filehandling import File, JSONEncoder
 from piethorn.filehandle.importer import (
     CallerRoot,
@@ -45,6 +47,69 @@ class FileTests(unittest.TestCase):
         encoded = JSONEncoder(sort_keys=True).dumps({"b": [1], "a": {"c": 2}})
 
         self.assertEqual(json.loads(encoded), {"a": {"c": 2}, "b": [1]})
+
+    def test_discovered_children_are_relative_to_parent_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root_path = Path(tmp)
+            (root_path / "sample.txt").write_text("content")
+
+            root = File(root_path)
+
+            self.assertEqual(root.children.files()[0].file_path, str(root_path / "sample.txt"))
+
+
+class PathFileTests(unittest.TestCase):
+    def test_append_text_preserves_existing_content_with_atomic_writes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sample.txt"
+            path.write_text("old")
+
+            written = PathFile(path).append_text("new")
+
+            self.assertEqual(written, 3)
+            self.assertEqual(path.read_text(), "oldnew")
+
+    def test_append_bytes_preserves_existing_content_with_atomic_writes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sample.bin"
+            path.write_bytes(b"old")
+
+            written = PathFile(path).append_bytes(b"new")
+
+            self.assertEqual(written, 3)
+            self.assertEqual(path.read_bytes(), b"oldnew")
+
+    def test_exclusive_write_content_raises_when_target_exists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sample.txt"
+            path.write_text("old")
+
+            with self.assertRaises(FileExistsError):
+                PathFile(path).write_content("x", "new")
+
+            self.assertEqual(path.read_text(), "old")
+
+    def test_exclusive_write_content_creates_missing_target_with_atomic_writes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sample.txt"
+
+            written = PathFile(path).write_content("x", "new")
+
+            self.assertEqual(written, 3)
+            self.assertEqual(path.read_text(), "new")
+
+
+class JsonFileTests(unittest.TestCase):
+    def test_backup_preserves_previous_json_when_atomic_write_is_enabled(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sample.json"
+            path.write_text('{"old": true}\n')
+            options = JsonFileOptions(backup=True)
+
+            JsonFile(path, options=options).save({"new": True})
+
+            self.assertEqual(json.loads(path.read_text()), {"new": True})
+            self.assertEqual(json.loads(path.with_suffix(".json.bak").read_text()), {"old": True})
 
 
 class ImporterTests(unittest.TestCase):

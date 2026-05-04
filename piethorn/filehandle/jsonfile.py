@@ -154,7 +154,7 @@ class JsonFile:
             else:
                 self.path.write_text(text, encoding=self.options.encoding)
 
-            if self.options.backup:
+            if self.options.backup and not self.options.atomic_write:
                 self._write_backup_best_effort()
         finally:
             self._release_lock(lock_fd)
@@ -259,7 +259,7 @@ class JsonFile:
         else:
             self.path.write_text(text, encoding=self.options.encoding)
 
-        if self.options.backup:
+        if self.options.backup and not self.options.atomic_write:
             self._write_backup_best_effort()
 
 
