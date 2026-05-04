@@ -14,6 +14,7 @@ class BasePath(PathLike[str]):
             self._path = path._path
         else:
             self._path = Path(path)
+        self._parent = None
 
     @property
     def path(self) -> Path:
@@ -27,10 +28,13 @@ class BasePath(PathLike[str]):
 
         For a filesystem root, returns self.
         """
-        parent = self._path.parent
-        if parent == self._path:
-            return self
-        return BasePath(parent)
+        if self._parent is None:
+            parent = self._path.parent
+            if parent == self._path:
+                self._parent = self
+            else:
+                self._parent = BasePath(parent)
+        return self._parent
 
     @property
     def name(self) -> str:
