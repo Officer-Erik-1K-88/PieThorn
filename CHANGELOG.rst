@@ -32,6 +32,15 @@ This is cleared when the official release of the
 prereleases arrives.
 This is mainly for organization purposes.
 
+Published
+=========
+
+Here are the changes made in each version that has a public release.
+These will never change.
+
+0.2.0
+-----
+
 0.2.0rc1
 --------
 
@@ -45,12 +54,6 @@ This is mainly for organization purposes.
 * Added ``piethorn.collections.listener`` event listener framework with ``Listenable``, ``Listener``, ``Event``, ``EventBuilder``, ``ListenerBuilder``, and ``listens``.
 * Fixed documentation pages version switcher to order correctly.
 * Added environment to ``release.yml`` workflow.
-
-Published
-=========
-
-Here are the changes made in each version that has a public release.
-These will never change.
 
 0.1.1
 -----
