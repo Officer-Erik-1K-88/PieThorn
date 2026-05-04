@@ -22,6 +22,19 @@ but has yet to be released as a version.
 
 Changes:
 
+NONE
+
+PreReleases
+===========
+
+Here you'll find what is in prerelease tags.
+This is cleared when the official release of the
+prereleases arrives.
+This is mainly for organization purposes.
+
+0.2.0rc1
+--------
+
 * Added listener package API documentation and a listener usage guide.
 * Added listener package docstrings.
 * Added ``SetBool`` flag helper for merging explicit and default boolean configuration.
@@ -32,16 +45,6 @@ Changes:
 * Added ``piethorn.collections.listener`` event listener framework with ``Listenable``, ``Listener``, ``Event``, ``EventBuilder``, ``ListenerBuilder``, and ``listens``.
 * Fixed documentation pages version switcher to order correctly.
 * Added environment to ``release.yml`` workflow.
-
-PreReleases
-===========
-
-Here you'll find what is in prerelease tags.
-This is cleared when the official release of the
-prereleases arrives.
-This is mainly for organization purposes.
-
-ALL GOOD. NO PRERELEASES.
 
 Published
 =========
