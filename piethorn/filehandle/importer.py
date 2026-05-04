@@ -184,7 +184,7 @@ def change_source_dir(source_dir: StrPath, *, path: Optional[Path]=None, strict:
     """
 
     :param strict:
-    :param source_dir: The path, that is relative to project root, to change the known source directory tp.
+    :param source_dir: The project-root-relative path to use as the known source directory.
     :param path: The path to change the known project directory to.
     :return:
     """

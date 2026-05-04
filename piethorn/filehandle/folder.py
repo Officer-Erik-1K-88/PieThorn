@@ -12,8 +12,9 @@ class Folder(BasePath):
         :param create:
             If True, create the folder (and parents) if it does not exist.
         :param must_exist:
-            If True, raise NotADirectoryError if the path does not exist
-            or is not a directory.
+            If True, require the path to exist and be a directory.
+            Raises FileNotFoundError when missing and NotADirectoryError
+            when the path exists but is not a directory.
         """
         super().__init__(path)
 

@@ -128,7 +128,7 @@ class JsonFile:
                 return json.loads(raw)
             # allow trailing: parse first JSON value only
             decoder = json.JSONDecoder()
-            obj, idx = decoder.raw_decode(raw)
+            obj, idx = decoder.raw_decode(raw.lstrip())
             return obj
         except json.JSONDecodeError as e:
             raise JsonDecodeError(f"Invalid JSON in {self.path}: {e}") from e
@@ -190,8 +190,8 @@ class JsonFile:
                 pass
 
     def _write_backup_best_effort(self) -> None:
-        # If atomic_write already did a pre-replace backup when file existed,
-        # this becomes a post-write backup snapshot too (best-effort).
+        # Non-atomic writes keep a best-effort backup of the current file.
+        # Atomic writes create their pre-replace backup in _atomic_write_text().
         bak = self.path.with_suffix(self.path.suffix + ".bak")
         try:
             bak.write_bytes(self.path.read_bytes())

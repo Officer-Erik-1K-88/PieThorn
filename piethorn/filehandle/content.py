@@ -71,7 +71,7 @@ def get_file_descriptor(fd: int | None, default=None):
 
     :param fd: The file descriptor
     :param default: The value to return if the file descriptor isn't on record.
-    :return: A `tuple` where the first element is the last known path tied to `fd` and the second element is if it is open.
+    :return: The recorded `FDState` for `fd`, or `default` when it is not recorded.
     """
     if fd is None:
         return default

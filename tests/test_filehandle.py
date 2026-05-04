@@ -98,6 +98,23 @@ class PathFileTests(unittest.TestCase):
             self.assertEqual(written, 3)
             self.assertEqual(path.read_text(), "new")
 
+    def test_read_update_write_content_preserves_unwritten_content(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sample.txt"
+            path.write_text("abcdef")
+
+            written = PathFile(path).write_content("r+", "XY")
+
+            self.assertEqual(written, 2)
+            self.assertEqual(path.read_text(), "XYcdef")
+
+    def test_read_update_write_content_requires_existing_target(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sample.txt"
+
+            with self.assertRaises(FileNotFoundError):
+                PathFile(path).write_content("r+", "XY")
+
 
 class JsonFileTests(unittest.TestCase):
     def test_backup_preserves_previous_json_when_atomic_write_is_enabled(self):
@@ -110,6 +127,14 @@ class JsonFileTests(unittest.TestCase):
 
             self.assertEqual(json.loads(path.read_text()), {"new": True})
             self.assertEqual(json.loads(path.with_suffix(".json.bak").read_text()), {"old": True})
+
+    def test_allow_trailing_bytes_loads_first_json_value_after_leading_whitespace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sample.json"
+            path.write_text('\n  {"ok": true} trailing')
+            options = JsonFileOptions(allow_trailing_bytes=True)
+
+            self.assertEqual(JsonFile(path, options=options).load(), {"ok": True})
 
 
 class ImporterTests(unittest.TestCase):

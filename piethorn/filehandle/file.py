@@ -148,12 +148,12 @@ class File(BasePath):
         However, it will be limited to `chunk_size` bytes,
         therefore the logical line will be returned in multiple chunks.
         As it attempts to keep line semantics, if a logical line contains
-        fewer bytes than (or of same amount) `chunk_size`,
-        the logical line will be returned as a single chunk with lineEnd=True.
+        fewer bytes than (or the same amount as) `chunk_size`,
+        the logical line will be returned as a single chunk with line_end=True.
         While if the logical line exceeds `chunk_size`,
         it is split into multiple chunks.
-        In this case, only the final chunk for that line will have lineEnd=True;
-        earlier chunks have lineEnd=False.
+        In this case, only the final chunk for that line will have line_end=True;
+        earlier chunks have line_end=False.
 
         Text Mode Yields: FileChunk(chunk: str, size: len(chunk), line_end: bool)
 
@@ -192,8 +192,8 @@ class File(BasePath):
             Split a decoded text string into chunks such that each chunk,
             when encoded with `enc`, is <= chunk_size bytes.
 
-            `final_line_end` controls the lineEnd flag of the *last* chunk;
-            all earlier chunks always have lineEnd=False.
+            `final_line_end` controls the line_end flag of the *last* chunk;
+            all earlier chunks always have line_end=False.
             """
             if not text:
                 return
@@ -489,6 +489,8 @@ class File(BasePath):
 
             if "x" in mode and self.exists():
                 raise FileExistsError(f"File '{self.path}' already exists.")
+            if "r" in mode and "+" in mode and not self.exists():
+                raise FileNotFoundError(f"File '{self.path}' does not exist.")
 
             # Normalize data into an iterable of "chunks"
             # (each chunk is either FileChunk or raw payload)
@@ -500,7 +502,7 @@ class File(BasePath):
             tmp_path: File | None = None
             if self.options.atomic_write and not self.is_temp:
                 tmp_path = self.make_temp()
-                if "a" in mode and self.exists():
+                if self.exists() and ("a" in mode or ("r" in mode and "+" in mode)):
                     shutil.copy2(self.path, tmp_path.path)
 
             total_bytes = 0
@@ -597,12 +599,9 @@ class File(BasePath):
         """
         Opens this file.
 
-        If this file has a `file_descriptor`, then it will be
-        opened with `os.fdopen`.
-        Otherwise, it will be opened with `Path.open`.
-
-        If the `file_descriptor` is closed or being used by a different
-        file, then a new `file_descriptor` will be created.
+        The optional `file_descriptor` constructor argument is recorded for
+        callers that need to associate external descriptor state, but this
+        method opens the path directly with `Path.open`.
 
         Supports all standard modes: "r", "w", "a", "rb", "wb", "ab", etc.
         """
