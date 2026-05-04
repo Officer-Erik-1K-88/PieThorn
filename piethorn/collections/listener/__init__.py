@@ -1,3 +1,10 @@
+"""
+Event listener framework for attaching callbacks to method calls.
+
+This package exposes the listener primitives, decorators, and sequence base
+classes used to trigger named events from ``Listenable`` objects.
+"""
+
 from __future__ import annotations
 
 from abc import abstractmethod, ABC

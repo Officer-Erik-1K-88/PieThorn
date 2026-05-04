@@ -1,3 +1,5 @@
+"""Base classes for objects whose methods can trigger named listeners."""
+
 from __future__ import annotations
 
 from typing import Any, Callable
@@ -9,20 +11,25 @@ from piethorn.collections.listener.listens import listens, _double_wrap_prevent,
 
 def _get_listens_for(value):
     """
-    Gets listener metadata.
+    Return ``ListensFor`` metadata attached by the ``listens`` decorator.
     """
     return getattr(value, "__listens_for__", None)
 
 
 def _has_func_listens(func) -> bool:
+    """Return whether a callable has listener metadata."""
     return _get_listens_for(func) is not None
 
 def _has_func_wrapper(func):
+    """Return whether a callable has already been wrapped by ``listens``."""
     return getattr(func, "__listens_wrapped__", False)
 
 def _find_inherited_member_with_listens(cls, name):
     """
-    Searches parent classes for a method/property with listener metadata.
+    Return the nearest inherited member with listener metadata.
+
+    This supports subclasses that override a listened method without repeating
+    the ``@listens`` decorator.
     """
 
     for base in cls.__mro__[1:]:
@@ -35,6 +42,12 @@ def _find_inherited_member_with_listens(cls, name):
     return None
 
 def _member_has_listens(value):
+    """
+    Return whether a class member or descriptor has listener metadata.
+
+    :param value: The class dictionary value to inspect.
+    :return: Whether listener metadata is present.
+    """
     if isinstance(value, property):
         return (
             _has_func_listens(value.fget)
@@ -51,6 +64,12 @@ def _member_has_listens(value):
     return _has_func_listens(value)
 
 def _get_inherited_listens(inherited):
+    """
+    Collect listener metadata from an inherited member.
+
+    :param inherited: The inherited class member or descriptor.
+    :return: Combined ``ListensFor`` metadata, or ``None`` when unavailable.
+    """
     if inherited is None:
         return None
     if isinstance(inherited, property):
@@ -82,7 +101,10 @@ def _get_inherited_listens(inherited):
 
 def _copy_missing_listens(value, inherited):
     """
-    Applies @listens(...) while preserving descriptor type.
+    Copy inherited listener metadata onto an overriding member.
+
+    Properties, static methods, and class methods are rebuilt with their
+    original descriptor type so the subclass keeps the same binding behavior.
     """
     if isinstance(value, property):
         infget = None
@@ -131,6 +153,13 @@ def _copy_missing_listens(value, inherited):
 
 
 def _copy_missing_accessor_listens(func, inherited_listens):
+    """
+    Apply inherited listener metadata to an accessor when needed.
+
+    :param func: The accessor function to wrap.
+    :param inherited_listens: Listener metadata inherited from a parent member.
+    :return: The original function, a wrapped function, or ``None``.
+    """
     if func is None:
         return None
 
@@ -144,7 +173,10 @@ def _copy_missing_accessor_listens(func, inherited_listens):
 
 
 class Listenable:
+    """Base class for instances that own and dispatch named listeners."""
+
     def __init_subclass__(cls, **kwargs):
+        """Preserve ``@listens`` metadata when subclasses override listened members."""
         super().__init_subclass__(**kwargs)
 
         for name, value in list(cls.__dict__.items()):
@@ -160,6 +192,7 @@ class Listenable:
 
     def __init__(self, *named: str, listener_builder: ListenerBuilder | None = None, auto_create: bool = False):
         """
+        Create a listenable object with the given listener names.
 
         :param named: The names of each event listener to be created.
         :param listener_builder: The ``ListenerBuilder`` that stores and creates the ``Listener``s.
@@ -175,21 +208,19 @@ class Listenable:
     @property
     def auto_create(self) -> bool:
         """
-        Defines if ``Listener``s are automatically created
-        when ``add_listener()`` is used to add a ``caller_type``
-        to a nonexistent ``Listener``.
+        Whether ``add_listener`` creates missing listener entries on demand.
         """
         return self._auto_create
 
     @property
     def listener_count(self):
-        """Gets the count of ``Listener``s this ``Listenable`` has."""
+        """Number of listeners currently registered on this instance."""
         return  len(self.__listeners__)
 
     @system_listens("get_listener", straight_call_on_recurse_denied=True)
     def get_listener(self, name: int | str) -> Listener:
         """
-        Gets a ``Listener`` for use.
+        Return a registered listener by name or normalized integer event id.
 
         :param name: The name of the ``Listener`` to get.
         :return: The ``Listener`` with the provided name.
@@ -198,19 +229,20 @@ class Listenable:
 
     def has_listener(self, name: int | str) -> bool:
         """
-        Checks to see if a ``Listener`` with the provided name exists.
+        Return whether this instance has a listener for ``name``.
+
         :param name: The name of the ``Listener`` to check.
-        :return:
+        :return: Whether the listener exists.
         """
         return self.__listeners__.has(name)
 
     @system_listens("add_listener")
     def add_listener(self, name: int | str, caller: caller_type):
         """
-        Adds a function to a ``Listener``.
+        Register a callback on one of this object's listeners.
 
         :param name: The name of the ``Listener`` to add a caller to.
-        :param caller: The function to call when it's ``listener``'s use method is called.
+        :param caller: Function called with an ``Event`` when the listener fires.
         """
         if self.auto_create:
             self.__listeners__.add(name, replace=False).add(caller)
@@ -220,44 +252,46 @@ class Listenable:
     @system_listens("remove_listener")
     def remove_listener(self, name: int | str, caller):
         """
-        Removes a function from a ``Listener``.
+        Remove a callback from one of this object's listeners.
 
         :param name: The name of the ``Listener`` to remove a caller from.
         :param caller: The function to remove.
-        :return:
         """
         self.get_listener(name).remove(caller)
 
     @system_listens("event_trigger")
     def event_trigger(self, name: int | str, args: tuple, kwargs: dict, returned: Any, called_method: Callable):
         """
-        Triggers the ``Listener.use()`` method for the listener with the given name.
+        Dispatch a stored method-call context through a named listener.
 
         :param name: The name of the ``Listener`` to trigger.
         :param args: The original arguments passed that were passed to the ``called_method``.
         :param kwargs: The original keyword arguments passed that were passed to the ``called_method``.
         :param returned: The value returned by ``called_method`` when passed ``args`` and ``kwargs``
         :param called_method: The method that triggered the ``Event``
-        :return:
         """
         self.get_listener(name).use(args, kwargs, returned, called_method)
 
 
 class ListenerHolder(Listenable):
+    """Container-style wrapper around a ``ListenerBuilder`` registry."""
+
     def __init__(self, *named: str, listener_builder: ListenerBuilder | None = None, auto_create: bool = False):
         """
+        Create a holder for manually managed listener entries.
 
-        :param event_count: The number of unnamed events.
         :param named: The names of each event listener to be created.
+        :param listener_builder: The registry used to store listeners.
+        :param auto_create: Whether missing listeners are created by ``add_listener``.
         """
         super().__init__(*named, listener_builder=listener_builder, auto_create=auto_create)
 
     def create(self, name: int | str, event_builder: EventBuilder | None = None, *, replace: bool = False):
         """
-        Creates a new ``Listener`` with the given ``name`` and ``event_builder``.
+        Create or return a listener in this holder.
 
-        If a ``Listener`` with the given ``name`` already exists
-        and ``replace`` is ``False``, then this method is the same as ``get_listener()``.
+        Existing listeners are reused when ``replace`` is ``False``. Passing
+        ``replace=True`` overwrites the existing listener.
 
         :param name: The name of the listener. If name is an integer, then the name is set as ``event_{name}``.
         :param event_builder: The ``EventBuilder`` object that will be used to create the ``Event``s of the listener.
@@ -268,21 +302,29 @@ class ListenerHolder(Listenable):
 
     def remove(self, name: int | str, default=None):
         """
-        Removes the listener with the given ``name``.
+        Remove and return a listener from this holder.
 
         :param name: The name of the listener. If name is an integer, then ``event_{name}`` is checked.
         :param default: The default value to return if the listener does not exist.
-        :return:
+        :return: The removed listener, or ``default`` when the name is missing.
         """
         return self.__listeners__.remove(name, default)
 
     def __getitem__(self, item: int | str):
+        """
+        Get a listener by name or event index.
+
+        :param item: The listener name or event index.
+        :return: The requested ``Listener``.
+        """
         return self.__listeners__.get(item)
 
     def __len__(self):
+        """Return the number of listeners in this holder."""
         return len(self.__listeners__)
 
     def __iter__(self):
+        """Iterate over listeners in this holder."""
         return iter(self.__listeners__)
 
 

@@ -1,3 +1,5 @@
+"""Decorators that turn method calls into listener events."""
+
 from __future__ import annotations
 
 from functools import wraps
@@ -7,6 +9,8 @@ from piethorn.typing.flag import boolean_type, SetBool
 
 
 class ListensFor:
+    """Listener metadata attached to functions wrapped by ``listens``."""
+
     def __init__(
             self,
             names: tuple[int | str, ...],
@@ -15,6 +19,15 @@ class ListensFor:
             straight_call_on_recurse_denied: boolean_type = False,
             in_use_on_instance: boolean_type = True,
     ):
+        """
+        Create listener metadata.
+
+        :param names: Listener names to trigger.
+        :param allow_recurse: Whether listener events may recurse while already active.
+        :param throw_on_recurse_denied: Whether to raise when recursion is denied.
+        :param straight_call_on_recurse_denied: Whether to call the function directly when recursion is denied.
+        :param in_use_on_instance: Whether active state is tracked per instance.
+        """
         self._names: tuple[int | str, ...] = names
         self._allow_recurse = SetBool(allow_recurse, True, start_set=not allow_recurse)
         self._throw_on_recurse_denied = SetBool(throw_on_recurse_denied, True, start_set=not throw_on_recurse_denied)
@@ -26,61 +39,83 @@ class ListensFor:
 
     @property
     def names(self):
+        """Listener names triggered by the decorated callable."""
         return self._names
     @names.setter
     def names(self, names: tuple[int | str, ...]):
+        """Set the listener names triggered by the decorated callable."""
         if self._is_default:
             raise RuntimeError("Cannot modify a default ListensFor.")
         self._names = names
 
     @property
     def allow_recurse(self):
+        """Whether listener events may recurse while this metadata is active."""
         return self._allow_recurse.value
     @allow_recurse.setter
     def allow_recurse(self, allow_recurse: bool):
+        """Set whether listener events may recurse while this metadata is active."""
         if self._is_default:
             raise RuntimeError("Cannot modify a default ListensFor.")
         self._allow_recurse.value = allow_recurse
 
     @property
     def throw_on_recurse_denied(self):
+        """Whether denied recursion raises ``RecursionError``."""
         return self._throw_on_recurse_denied.value
     @throw_on_recurse_denied.setter
     def throw_on_recurse_denied(self, allow_recurse: bool):
+        """Set whether denied recursion raises ``RecursionError``."""
         if self._is_default:
             raise RuntimeError("Cannot modify a default ListensFor.")
         self._throw_on_recurse_denied.value = allow_recurse
 
     @property
     def straight_call_on_recurse_denied(self):
+        """Whether denied recursion calls the wrapped function directly."""
         return self._straight_call_on_recurse_denied.value
     @straight_call_on_recurse_denied.setter
     def straight_call_on_recurse_denied(self, straight_call_on_recurse_denied: bool):
+        """Set whether denied recursion calls the wrapped function directly."""
         if self._is_default:
             raise RuntimeError("Cannot modify a default ListensFor.")
         self._straight_call_on_recurse_denied.value = straight_call_on_recurse_denied
     
     @property
     def in_use_on_instance(self):
+        """Whether active-state tracking is separated by instance."""
         return self._in_use_on_instance.value
     @in_use_on_instance.setter
     def in_use_on_instance(self, in_use_on_instance: bool):
+        """Set whether active-state tracking is separated by instance."""
         if self._is_default:
             raise RuntimeError("Cannot modify a default ListensFor.")
         self._in_use_on_instance.value = in_use_on_instance
 
     @property
     def active(self):
+        """Whether this metadata is currently being used to trigger listeners."""
         return self._in_use
     @active.setter
     def active(self, active: bool):
+        """Set whether this metadata is currently being used to trigger listeners."""
         self._in_use = active
 
     @property
     def instance_in_uses(self):
+        """Per-callable active-state flags keyed by generated storage names."""
         return self._instance_in_uses
 
     def merge(self, listens_for: ListensFor):
+        """
+        Merge another ``ListensFor`` object into this one.
+
+        Listener names are appended without duplicates. Recursion options are
+        only copied from non-default metadata, which lets inherited decorators
+        keep explicit settings while ignoring default placeholders.
+
+        :param listens_for: Listener metadata to merge into this object.
+        """
         if self._is_default:
             raise RuntimeError("Cannot modify a default ListensFor.")
         self.names = tuple(dict.fromkeys((*self.names, *listens_for.names)))
@@ -95,6 +130,13 @@ DEFAULT_LISTENS_FOR = ListensFor(tuple())
 DEFAULT_LISTENS_FOR._is_default = True
 
 def _double_wrap_prevent(func, listens_for: ListensFor):
+    """
+    Add listener metadata to a callable without wrapping it a second time.
+
+    :param func: The callable to annotate.
+    :param listens_for: Listener metadata to attach or merge.
+    :return: The original callable.
+    """
     if hasattr(func, "__listens_for__"):
         func.__listens_for__.merge(listens_for)
     else:
@@ -110,25 +152,18 @@ def listens(
         inherited_listens_for: ListensFor = DEFAULT_LISTENS_FOR
 ):
     """
-    Defines the listeners that listen for the
-    method that this decorates.
+    Decorate a callable so calling it can trigger named listeners.
 
-    At least one listener name is expected.
+    At least one listener name is required. When the first argument is a
+    ``Listenable`` instance, the event is sent to that instance's listeners.
+    Otherwise, the event is sent to ``GLOBAL_LISTENERS``. If a ``Listenable``
+    instance does not have the named listener, a matching global listener is
+    used when one exists.
 
-    This decorator should only be used on methods of
-    classes that extend ``Listenable``.
-    If the decorated callable is not called on a ``Listenable`` instance, the
-    event is sent to ``GLOBAL_LISTENERS`` instead.
-
-    When the decorator is passed to some method on ``Listenable``,
-    then the ``self`` argument will not be passed to ``Event.args``
-    (in this case, we then wrap the ``Event.called_method`` in a way that allows it to
-    be called as if it was ``self.some_function()``).
-    However, when it's not on some ``Listenable`` instance,
-    then the ``self`` argument is passed to ``Event.args``.
-
-    Class methods and static methods trigger global listeners
-    unless manually passed a Listenable instance as their first argument.
+    For instance methods on ``Listenable``, ``self`` is excluded from
+    ``Event.args`` and ``Event.called_method`` is rebound so callbacks can call
+    it as if it were the original bound method. For non-``Listenable`` calls,
+    all positional arguments are preserved in ``Event.args``.
 
     When combined with descriptors such as ``property``,
     ``listens`` should be placed closest to the function
@@ -139,20 +174,11 @@ def listens(
     @listens("get")
     ```
 
-    There is recursion protection. This is to prevent triggering the listener events while
-    still in the process of running said events. Because of this, there are three settings:
-
-    ``allow_recurse``: This is used to prevent the wrapped function from firing.
-
-    ``throw_on_recurse_denied``: This is used to signal if a ``RecursionError``
-    should be fired when caught in event running when the function is called
-    and that ``allow_recurse`` is ``False``. If ``throw_on_recurse_denied``
-    is ``False``, then the value returned by the wrapped function will be ``None``.
-
-    ``straight_call_on_recurse_denied``: This is the alternative to when ``None`` is
-    returned. This should give the same functionality for when ``allow_recurse`` is
-    ``True``, but having this as ``True`` and ``allow_recurse`` as ``False`` is
-    faster than having ``allow_recurse`` as ``True``.
+    Recursion protection prevents listener events from being triggered while
+    those same events are already running. ``allow_recurse`` controls whether
+    that recursive listener triggering is allowed. When recursion is denied,
+    the wrapper either raises ``RecursionError``, returns ``None``, or calls the
+    wrapped function directly depending on the recursion options.
 
     :param listens_for_names: The names of each listener that will be triggered on use of the decorated method.
     :param allow_recurse: Whether to allow for recursion.
@@ -160,7 +186,7 @@ def listens(
     :param straight_call_on_recurse_denied: Whether to call the wrapped function instead of returning ``None`` on recurse denied.
     :param in_use_on_instance: Whether to store in use data on the instance. It is recommended that this is ``False`` for when on static methods. Defaults to ``True``.
     :param inherited_listens_for: The ``ListensFor`` instance to inherit information from.
-    :return:
+    :return: A decorator that wraps the target callable.
     """
     listens_for = ListensFor(
         names=tuple(_listener_name(name) for name in listens_for_names),
@@ -173,12 +199,25 @@ def listens(
     if len(listens_for.names) == 0:
         raise TypeError("There must be at least one listener to listen for.")
     def decorator(func):
+        """
+        Wrap a callable so it triggers its configured listeners.
+
+        :param func: The callable to decorate.
+        :return: The wrapped callable.
+        """
         # Prevent double-wrapping.
         if getattr(func, "__listens_wrapped__", False):
             return _double_wrap_prevent(func, listens_for)
 
         @wraps(func)
         def wrapper(*args, **kwargs):
+            """
+            Call the decorated callable and trigger configured listeners.
+
+            :param args: Positional arguments for the decorated callable.
+            :param kwargs: Keyword arguments for the decorated callable.
+            :return: The decorated callable's return value.
+            """
             from piethorn.collections.listener.listenable import Listenable, GLOBAL_LISTENERS
             lf = getattr(wrapper, "__listens_for__", listens_for)
             instance_or_cls = args[0] if args else None
@@ -249,12 +288,16 @@ def system_listens(
         straight_call_on_recurse_denied: bool=False,
 ):
     """
-    This decorator should be used for when listening to
-    methods in the listener system. For example: ``Listenable.get_listeners()``.
+    Decorate internal listener-system methods without recursive event dispatch.
+
+    This is used for methods such as ``Listenable.get_listener`` that should
+    still emit events but must not recursively trigger themselves while the
+    listener system is already handling one of those events.
+
     :param names: The names of each listener that will be triggered on use of the decorated method.
     :param throw_on_recurse_denied: Whether to raise a ``RecursionError`` when ``allow_recurse`` is ``False`` and is in recursion.
     :param straight_call_on_recurse_denied: Whether to call the wrapped function instead of returning ``None`` on recurse denied.
-    :return:
+    :return: A ``listens`` decorator configured for listener-system methods.
     """
     return listens(
         *names,

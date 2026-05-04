@@ -13,6 +13,14 @@ class SetBool:
             start_set: bool=False,
             allow_unset_change: bool=False,
     ):
+        """
+
+        :param value: The starting value
+        :param default: The default value
+        :param and_change: Whether when using ``change`` it should use ``and`` or ``or``.
+        :param start_set: Whether to define ``set`` as true or false.
+        :param allow_unset_change: Whether to allow ``change`` to occur when it's passed a ``SetBool`` with ``set`` false
+        """
         if isinstance(value, bool):
             self._value = value
             self._default = default

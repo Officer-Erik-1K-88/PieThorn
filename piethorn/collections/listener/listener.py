@@ -1,3 +1,5 @@
+"""Listener callback chains and the builder that stores them by name."""
+
 from __future__ import annotations
 
 import re
@@ -11,21 +13,37 @@ if TYPE_CHECKING:
 
 
 def _listener_name(name: int | str) -> str:
+    """
+    Normalize a listener name.
+
+    :param name: A listener name or integer event index.
+    :return: The normalized listener name.
+    """
     if isinstance(name, int):
         return f"event_{name}"
     return name
 
 class GetListenerError(Exception):
+    """Raised when a requested ``Listener`` cannot be found."""
+
     pass
 
 caller_type: TypeAlias = Callable[[Event], bool]
 
 class Listener:
+    """Named callback chain that receives ``Event`` objects when triggered."""
+
     def __init__(
             self,
             name: int | str,
             event_builder: EventBuilder=DEFAULT_EVENT_BUILDER,
     ):
+        """
+        Create a listener with an event builder.
+
+        :param name: The listener name. Integers are normalized as ``event_{name}``.
+        :param event_builder: Builder used to create events for this listener.
+        """
         self._name = _listener_name(name)
         self.__callers__: list[caller_type] = []
         self._event_builder = event_builder.new_listener(self)
@@ -33,22 +51,24 @@ class Listener:
 
     @property
     def name(self):
+        """The normalized name of this listener."""
         return self._name
 
     @property
     def event_builder(self):
+        """The ``EventBuilder`` used to create events for this listener."""
         return self._event_builder
 
     def event(self, args: tuple, kwargs: dict, returned: Any, called_method, *, caller: Listener | None=None) -> Event:
         """
-        Builds an event with ``event_builder``.
+        Build the event object passed to this listener's callbacks.
 
-        Refer to ``EventBuilder.build`` for further information on how events are built.
+        This delegates event reuse and context storage to ``event_builder``.
 
         :param args: The values to be passed to the ``Event.args`` property.
         :param kwargs: The key-value pairs to be passed to the ``Event.kwargs`` property.
         :param returned: The value to be passed to the ``Event.returned`` property.
-        :param called_method:
+        :param called_method: The method that triggered this listener.
         :param caller: The ``Listener`` that called the event. Leave empty to default to ``event_builder.listener``.
         :return: The created ``Event``.
         """
@@ -56,27 +76,25 @@ class Listener:
 
     def use(self, args: tuple, kwargs: dict, returned: Any, called_method):
         """
-        Calls this ``Listener``'s caller chain.
+        Dispatch an event through this listener's callback chain.
 
-        The caller chain is the list of ``caller_type``s
-        that are to be called when the ``Listener`` is triggered.
-
-        The boolean returned by a ``caller_type`` is used to determine whether
-        the next ``caller_type`` is called. So, if it returns ``False``, then
-        no further callers in the caller chain will be called.
+        Each callback receives an ``Event``. Returning ``False`` from a callback
+        stops the chain, and callbacks may also stop dispatch through
+        ``Event.stop_current()``, ``Event.stop_chain()``, or ``Event.end()``.
 
         :param args: The values to be passed to the ``Event.args`` property.
         :param kwargs: The key-value pairs to be passed to the ``Event.kwargs`` property.
         :param returned: The value to be passed to the ``Event.returned`` property.
-        :param called_method:
-        :return:
+        :param called_method: The method that triggered this listener.
         """
         def flag_end_current(event):
+            """Reset and report the current-listener stop flag."""
             if event.end_current:
                 event._end_current = False
                 return True
             return False
         def flag_end_chain(event, contin):
+            """Report whether the listener chain should stop."""
             if event.end_chain or contin is False:
                 return True
             return False
@@ -121,9 +139,10 @@ class Listener:
 
     def __call__(self, event: Event) -> bool:
         """
-        A ``Listener`` callable so that they can be passed as a ``caller_type``.
+        Allows this listener to be used as a callback for another listener.
 
-        If ``event.end_current`` is ``True``, then will end the caller chain.
+        The incoming event is passed through this listener's caller chain. If a
+        caller returns ``False`` or sets ``event.end_current``, the chain stops.
 
         :param event: The event from the calling ``Listener``.
         :return: Whether the calling listener should continue its caller chain.
@@ -138,10 +157,10 @@ class Listener:
 
     def add(self, caller: caller_type):
         """
-        Add a ``caller`` to this ``Listener``'s caller chain.
+        Append a callback to this listener's dispatch chain.
 
-        :param caller: The method to add.
-        :return:
+        :param caller: Callable that accepts an ``Event`` and optionally returns ``False`` to stop dispatch.
+        :raises TypeError: If ``caller`` is not callable.
         """
         if not callable(caller):
             raise TypeError("Cannot add a caller that isn't callable.")
@@ -149,40 +168,50 @@ class Listener:
 
     def get(self, index: int):
         """
-        Get an item from this ``Listener``'s caller chain.
+        Return the callback at a specific position in the dispatch chain.
+
         :param index: The index of the item to get.
-        :return: The requested item.
+        :return: The requested callback.
         """
         return self.__callers__[index]
 
     def remove(self, caller):
         """
-        Remove a ``caller`` from this ``Listener``'s caller chain.
-        :param caller: The method to remove.
-        :return:
+        Remove a callback from this listener's dispatch chain.
+
+        :param caller: The callback to remove.
+        :raises ValueError: If ``caller`` is not in the chain.
         """
         self.__callers__.remove(caller)
 
     def __len__(self):
+        """Return the number of callers in this listener chain."""
         return len(self.__callers__)
 
 
 class ListenerBuilder:
+    """Mutable registry for named ``Listener`` instances."""
+
     def __init__(
             self,
             default_event_builder: EventBuilder=DEFAULT_EVENT_BUILDER,
     ):
+        """
+        Create a listener builder.
+
+        :param default_event_builder: Builder used when a listener-specific builder is not provided.
+        """
         self.__listeners__: Map[str, Listener] = Map()
         self._listenable: Listenable | None = None
         self._event_builder: EventBuilder = default_event_builder
 
     def at(self, index: int) -> Listener:
         """
-        Gets the ``Listener`` at ``index``.
+        Return the listener stored at a positional index.
 
-        :param index: The index of the listener
+        :param index: The index of the listener.
         :raises GetListenerError: If there is no listener at ``index``.
-        :return:
+        :return: The listener at ``index``.
         """
         try:
             return self.__listeners__.value_at_index(index)
@@ -191,16 +220,15 @@ class ListenerBuilder:
 
     def get(self, name: int | str) -> Listener:
         """
-        Gets the listener at ``name``.
+        Return a listener by normalized name.
 
-        This method has an index fallback for when
-        the checked name has the pattern of ``event_[0-9]+``,
-        the number that proceeds ``event_`` would be deemed
-        as the index.
+        Integer names normalize to ``event_{name}``. String names that match
+        ``event_[0-9]+`` may also fall back to positional lookup when no exact
+        key exists.
 
         :param name: The name of the listener. If name is an integer, then ``event_{name}`` is checked.
         :raises GetListenerError: If there is no listener with ``name``.
-        :return:
+        :return: The matching listener.
         """
         check_name = _listener_name(name)
         try:
@@ -217,17 +245,15 @@ class ListenerBuilder:
 
     def get_at(self, name: int | str) -> Listener:
         """
-        This method combines ``get`` and ``at`` methods.
+        Return a listener by name first, then by index when possible.
 
-        It first tries to get the listener at ``name``.
-        If that fails, then will attempt to use ``name``
-        as the index of the listener. ``name`` can only
-        be used as an index if ``name`` is an integer
-        or is of the pattern ``event_[0-9]+``.
+        This is useful for APIs that accept either a listener name or an event
+        index. String values only act as indexes when they match
+        ``event_[0-9]+``.
 
         :param name: The name of the listener. Or the index of the listener.
-        :raises GetListenerError:
-        :return:
+        :raises GetListenerError: If no listener can be resolved.
+        :return: The resolved listener.
         """
         try:
             return self.get(name)
@@ -243,19 +269,18 @@ class ListenerBuilder:
 
     def has(self, name: int | str) -> bool:
         """
-        Checks if a ``Listener`` with the given ``name`` exists.
+        Return whether a listener exists for a normalized name.
+
         :param name: The name of the listener. If name is an integer, then ``event_{name}`` is checked.
-        :return:
+        :return: Whether the listener exists.
         """
         return self.__listeners__.has_key(_listener_name(name))
 
     def build(self, name: int | str, event_builder: EventBuilder | None=None):
         """
-        Builds a ``Listener`` with the given ``name`` and ``event_builder``.
+        Create a listener without adding it to this builder.
 
-        The created ``Listener`` object is not added to this ``ListenerBuilder`` object.
-        To create on that is added to this ``ListenerBuilder`` object,
-        refer to ``ListenerBuilder.add()``.
+        Use ``add`` when the listener should be stored in this registry.
 
         :param name: The name of the listener. If name is an integer, then the name is set as ``event_{name}``.
         :param event_builder: The ``EventBuilder`` object that will be used to create the ``Event``s of the listener.
@@ -265,10 +290,10 @@ class ListenerBuilder:
 
     def add(self, name: int | str, event_builder: EventBuilder | None=None, *, replace: bool = False):
         """
-        Creates a new ``Listener`` with the given ``name`` and ``event_builder``.
+        Store and return a listener for ``name``.
 
-        If a ``Listener`` with the given ``name`` already exists
-        and ``replace`` is ``False``, then this method is the same as ``get()``.
+        Existing listeners are reused when ``replace`` is ``False``. Passing
+        ``replace=True`` creates a new listener and overwrites the old entry.
 
         :param name: The name of the listener. If name is an integer, then the name is set as ``event_{name}``.
         :param event_builder: The ``EventBuilder`` object that will be used to create the ``Event``s of the listener.
@@ -284,11 +309,11 @@ class ListenerBuilder:
 
     def pop(self, index: int, default=None):
         """
-        Removed the listener at ``index``.
+        Remove and return the listener stored at ``index``.
 
         :param index: The index of the listener to remove.
         :param default: The default value to return if the listener does not exist.
-        :return:
+        :return: The removed listener, or ``default`` when the index is missing.
         """
         try:
             listener = self.at(index)
@@ -299,16 +324,18 @@ class ListenerBuilder:
 
     def remove(self, name: int | str, default=None):
         """
-        Removes the listener with the given ``name``.
+        Remove and return the listener stored under ``name``.
 
         :param name: The name of the listener. If name is an integer, then ``event_{name}`` is checked.
         :param default: The default value to return if the listener does not exist.
-        :return:
+        :return: The removed listener, or ``default`` when the name is missing.
         """
         return self.__listeners__.pop(_listener_name(name), default)
 
     def __len__(self):
+        """Return the number of listeners stored by this builder."""
         return len(self.__listeners__)
 
     def __iter__(self):
+        """Iterate over stored ``Listener`` instances."""
         return iter(self.__listeners__.values())

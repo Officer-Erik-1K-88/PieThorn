@@ -1,3 +1,5 @@
+"""Event state objects passed to listener callbacks."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -7,26 +9,40 @@ if TYPE_CHECKING:
 
 
 class EventEnd(Exception):
+    """Raised when an event is force-ended during listener dispatch."""
+
     def __init__(self, event: Event):
+        """
+        Create an exception for the event that requested termination.
+
+        :param event: The ``Event`` that ended its listener chain.
+        """
         super().__init__(f"Event {event.name} ended")
         self.event = event
 
 
 class Event:
     """
-    Actions
-    -------
+    Runtime context passed to a listener callback.
 
-    The actions of an ``Event`` is defined by whether it's ``EventBuilder`` is
-    static. If it is static, then the event's actions are deemed to span across
-    the entire caller chain of the ``Listener``. While when it isn't static,
-    the event's actions are deemed to only span the workings of a single ``caller_type``.
+    An event stores the arguments, return value, and originating method for the
+    method call that triggered a listener. It also exposes stop flags that let a
+    callback stop the current listener, the remaining listener chain, or both.
+
+    Events built by a static ``EventBuilder`` are reused across the full caller
+    chain. Events from a non-static builder are recreated between callers.
     """
     def __init__(
             self,
             builder: EventBuilder,
             caller: Listener,
     ):
+        """
+        Create an event for a listener callback.
+
+        :param builder: The ``EventBuilder`` that created this event.
+        :param caller: The ``Listener`` that triggered this event.
+        """
         self._builder = builder
         self._caller = caller
         self._args: tuple = ()
@@ -39,62 +55,74 @@ class Event:
 
     @property
     def name(self):
-        """The name of the event"""
+        """Event name derived from the listener that owns the event builder."""
         return self._builder.name
 
     @property
     def caller(self):
-        """The ``Listener`` that called this event"""
+        """The ``Listener`` currently dispatching this event."""
         return self._caller
 
     @property
     def listener(self):
-        """The ``Listener`` that built this event"""
+        """The ``Listener`` associated with this event's builder."""
         return self._builder.listener
 
     @property
     def end_chain(self):
-        """The flag for telling ``Listener.use()`` when to end it's caller chain."""
+        """Whether dispatch should stop before the next listener callback."""
         return self._end_chain
 
     @property
     def end_current(self):
-        """The flag for telling ``Listener.use()`` when to ensure that the current ``caller_type`` has correctly ended."""
+        """Whether the current ``caller_type`` should end before dispatch continues."""
         return self._end_current
 
     @property
     def active(self):
+        """Whether this event is currently being handled by a caller."""
         return self._in_use
 
     @property
     def args(self):
-        """The arguments passed to the action that called this event"""
+        """Positional arguments passed to the method that triggered the event."""
         return self._args
 
     @property
     def kwargs(self):
-        """The keyword arguments passed to the action that called this event"""
+        """Keyword arguments passed to the method that triggered the event."""
         return self._kwargs
 
     @property
     def returned(self):
-        """The value that was returned by the action that called this event"""
+        """Return value from the method that triggered the event."""
         return self._returned
 
     @property
     def called_method(self):
         """
-        The method that called this event.
+        Method that triggered this event.
 
-        This can be dangerous to use, especially
-        when it is a setter, adder, or deleter as
-        if ``Event.called_method(*Event.args, **Event.kwargs)``
-        is called, then it would essentially be calling the same
-        function a second time.
+        This can be dangerous to use, especially for
+        setters, adders, deleters, and other
+        mutating methods, calling
+        ``Event.called_method(*Event.args, **Event.kwargs)`` would essentially
+        run the same operation a second time.
         """
         return self._called_method
 
     def pass_values(self, args: tuple = (), kwargs: dict | None = None, returned=None, called_method=None):
+        """
+        Store call context on the event before it is dispatched.
+
+        Values are ignored while the event is active to avoid mutating an event
+        that is already being handled.
+
+        :param args: Positional arguments passed to the triggering method.
+        :param kwargs: Keyword arguments passed to the triggering method.
+        :param returned: Value returned by the triggering method.
+        :param called_method: Method that triggered the event.
+        """
         if not self.active:
             self._args = args
             self._kwargs = kwargs if kwargs is not None else {}
@@ -103,17 +131,14 @@ class Event:
 
     def stop_current(self, force: bool = True):
         """
-        Used to call the end of this event for the current listener chain item.
+        End this event for the current listener chain item.
 
-        This has no real effect outside of setting ``end_current`` to ``True``.
-        However, this method does have an effect when ``force`` is ``True``.
-
-        When ``force`` is ``True``, then the ``EventEnd`` exception will be raised,
-        this will end all event actions of the current ``caller_type``.
+        Without forcing, this only sets ``end_current``. With ``force=True``,
+        ``EventEnd`` is raised and all remaining event actions for the current
+        ``caller_type`` are ended immediately.
 
         :param force: Whether to force end all further event actions. Defaults to ``True``.
         :raises EventEnd: When ``force`` is ``True``.
-        :return:
         """
         self._end_current = True
         if force:
@@ -121,17 +146,14 @@ class Event:
 
     def stop_chain(self, force: bool = False):
         """
-        Used to call the end of this event for the caller chain of the ``Listener``.
+        End this event for the caller chain of the ``Listener``.
 
-        Sets the ``end_chain`` boolean to ``True``.
-
-        When ``force`` is ``False``, then the event actions
-        of the current ``caller_type`` will finish before
-        ending the caller chain of the ``Listener``.
+        Without forcing, the event actions of the current ``caller_type`` will finish
+        before the listener caller chain ends. With ``force=True``,
+        ``EventEnd`` is raised immediately.
 
         :param force: Whether to force end all further event actions. Defaults to ``False``.
         :raises EventEnd: When ``force`` is ``True``.
-        :return:
         """
         self._end_chain = True
         if force:
@@ -139,16 +161,14 @@ class Event:
 
     def end(self, force: bool = False):
         """
-        Used to call the end of this event.
+        End this event for both the current item and the caller chain.
 
-        Calls both ``stop_current`` and ``stop_chain``.
-
-        If ``force`` is ``True``, then the ``EventEnd`` exception will be raised,
-        this will end all event actions.
+        This sets both ``end_current`` and ``end_chain``. With ``force=True``,
+        ``EventEnd`` is raised and all remaining event actions are ended
+        immediately.
 
         :param force: Whether to force end all further event actions.
         :raises EventEnd: When ``force`` is ``True``.
-        :return:
         """
         self._end_current = True
         self._end_chain = True
@@ -157,6 +177,8 @@ class Event:
 
 
 class EventBuilder:
+    """Creates ``Event`` objects for a listener."""
+
     def __init__(
             self,
             listener: Listener | None = None,
@@ -164,10 +186,11 @@ class EventBuilder:
             copies_to_new: bool = False,
     ):
         """
+        Create a builder that controls event reuse for a listener.
 
         :param listener: The ``Listener`` that this ``EventBuilder`` creates ``Event``s for
-        :param static: Whether this ``EventBuilder`` is only allowed to create one ``Event``
-        :param copies_to_new: Whether the ``new_listener()`` method creates a new ``EventBuilder``
+        :param static: Whether to reuse one event until ``clear_event`` is called.
+        :param copies_to_new: Whether ``new_listener()`` returns a copied builder.
         """
         self._listener: Listener | None = None
         self._name = "UNKNOWN_EVENT"
@@ -179,43 +202,43 @@ class EventBuilder:
 
     @property
     def listener(self):
-        """The ``Listener`` that this ``EventBuilder`` is attributed to"""
+        """Listener that receives events created by this builder."""
         return self._listener
 
     @property
     def name(self):
-        """The name that is used for each ``Event`` created."""
+        """Display-style event name derived from the assigned listener name."""
         return self._name
 
     @property
     def static(self):
         """
-        Whether this ``EventBuilder`` is only allowed to create one ``Event``.
+        Whether this builder can only build one event until ``clear_event`` is called.
 
-        If ``clear_event()`` is called, then this ``EventBuilder`` can create another ``Event``.
+        A static builder returns its existing event while one is cached.
+        Clearing the event allows the builder to create another event.
         """
         return self._static
 
     @property
     def copies_to_new(self):
-        """Whether the ``new_listener()`` method creates a new ``EventBuilder`` or modifies this ``EventBuilder``."""
+        """Whether ``new_listener()`` copies this builder instead of mutating it."""
         return self._copies_to_new
 
     def build(self, args: tuple, kwargs: dict, returned: Any, called_method, *, caller: Listener | None = None) -> Event:
         """
-        Builds an ``Event``.
+        Return an event populated with the triggering call context.
 
-        If this ``EventBuilder`` is ``static``,
-        then this builder will only build one ``Event``.
-
-        Use ``clear_event`` to clear the built ``Event``.
+        If this builder is static, it returns the existing built event until
+        ``clear_event`` is called. Otherwise, it creates a new event on each
+        build call.
 
         :param args: The original arguments passed that were passed to the ``called_method``.
         :param kwargs: The original keyword arguments passed that were passed to the ``called_method``.
         :param returned: The value returned by ``called_method`` when passed ``args`` and ``kwargs``
         :param called_method: The method that triggered the ``Event``
         :param caller: The ``Listener`` that should be tied to the created ``Event``.
-        :return:
+        :return: A populated ``Event`` for listener callbacks.
         """
         if caller is None:
             caller = self.listener
@@ -226,13 +249,8 @@ class EventBuilder:
 
     def make_event(self, caller: Listener) -> Event:
         """
-        Creates an ``Event``.
+        Create a fresh event without storing it on this builder.
 
-        Unlike ``EventBuilder.build()``,
-        This method doesn't store the created
-        ``Event`` in this ``EventBuilder``.
-        This means that this method will
-        always return a new ``Event``.
         :param caller: The ``Listener`` that should be tied to the created ``Event``.
         :return: The created ``Event``.
         """
@@ -240,11 +258,10 @@ class EventBuilder:
 
     def clear_event(self, destabilize_event: bool = False) -> Event | None:
         """
-        Used to clear the built ``Event``.
+        Remove the cached event from this builder.
 
-        This method is mainly used in ``Listener.use``
-        to clear the built ``Event`` at the end
-        of the built ``Event``'s life cycle.
+        ``Listener.use`` calls this when dispatch ends. Active events cannot be
+        cleared because callbacks may still depend on their context.
 
         :param destabilize_event: Whether to make the cleared ``Event`` unusable.
         :return: The removed ``Event``.
@@ -261,10 +278,10 @@ class EventBuilder:
 
     def copy(self, **kwargs) -> EventBuilder:
         """
-        Creates a new ``EventBuilder`` with ``**kwargs``.
+        Create a builder with this builder's settings as defaults.
 
-        If the value isn't defined in ``kwargs``,
-        then the value is taken from this ``EventBuilder``.
+        Supported keyword overrides are ``listener``, ``static``, and
+        ``copies_to_new``.
 
         :param kwargs: The keyword arguments to pass to ``EventBuilder`` constructor.
         :return: The created ``EventBuilder``.
@@ -277,6 +294,11 @@ class EventBuilder:
         return event_builder
 
     def _set_listener(self, listener: Listener):
+        """
+        Assign the listener used by events from this builder.
+
+        :param listener: The ``Listener`` this builder should create events for.
+        """
         self._listener = listener
         name = listener.name if listener.name.lower().startswith("event_") else f"event_{listener.name}"
         self._name = name.replace("_", " ").title().replace(" ", "")
@@ -284,11 +306,10 @@ class EventBuilder:
 
     def new_listener(self, listener: Listener) -> EventBuilder:
         """
-        Updates this ``EventBuilder``'s ``Listener``.
+        Return a builder assigned to ``listener``.
 
-        If ``copies_to_new`` is true, then this method will
-        create a ``copy`` of this ``EventBuilder`` with the
-        new ``Listener``.
+        If ``copies_to_new`` is true, this returns a copy of the builder with
+        the new listener. Otherwise, it updates this builder in place.
 
         :param listener: The new ``Listener``.
         :return: This ``EventBuilder`` or a new ``EventBuilder``.
