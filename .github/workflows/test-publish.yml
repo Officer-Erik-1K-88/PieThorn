@@ -5,37 +5,13 @@ on:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
   workflow_dispatch:
-    inputs:
-      ref:
-        description: "Git ref to build from for manual runs"
-        required: false
-        type: string
 
 jobs:
-  build:
-    permissions:
-      contents: read
-    uses: ./.github/workflows/build.yml
+  publish:
+    uses: Officer-Erik-1K-88/ThornForge/./.github/workflows/publish.yml@main
     with:
-      ref: ${{ case(inputs.ref != '', inputs.ref, github.ref) }}
-  
-  publish-testpypi:
-    name: Publish To TestPyPI
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: testpypi
-      url: https://test.pypi.org/p/piethorn
-    permissions:
-      id-token: write
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v7
-        with:
-          name: python-package-distributions
-          path: dist/
-
-      - name: Publish package distributions to TestPyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
+      gitrelease: false
+      thornforge-ref: "main"
+      environment: "test"
+      test-environment-name: "testpypi"
+      test-environment-project: "piethorn"
