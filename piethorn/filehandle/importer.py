@@ -192,17 +192,18 @@ def change_source_dir(source_dir: StrPath, *, path: Optional[Path]=None, strict:
     changed = False
     if path is not None and path.is_dir() and path.exists():
         changed = True
+    valid_source_dir = None
     if source_dir is not None:
         if path is None:
             path = project_root.path
         complete_source_dir = path / source_dir
         if complete_source_dir.is_dir() and complete_source_dir.exists():
-            source_dir = complete_source_dir
+            valid_source_dir = complete_source_dir
             changed = True
     return {
         "strict": strict,
         "path": path if path is not project_root.path else None,
-        "source_dir": source_dir if source_dir is not project_root.source_dir else None,
+        "source_dir": valid_source_dir if valid_source_dir is not project_root.source_dir else None,
         "output": changed,
     }
 

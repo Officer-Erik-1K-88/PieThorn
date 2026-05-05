@@ -375,7 +375,7 @@ class JSONFile[_VT](MutableMapping[str, _VT]):
         """Return whether the backing file or nested JSON key exists."""
         if self.has_path():
             if self.has_mother():
-                return self.file in self._mother.keys()
+                return self.file in self._mother._data
             return self.file.exists()
         return False
 

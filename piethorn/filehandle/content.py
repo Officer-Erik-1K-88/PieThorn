@@ -135,6 +135,7 @@ class ContentWrapper(Generic[TIO], IOBase, IO[Any]):
         self._write_through = write_through
         self._closefd = closefd
         self._own_content = own_content
+        self._last_fd: int | None = None
         if (content is None and path is not None) or (path is None and content is not None):
             raise ValueError("If content or path is specified, then the other is required.")
         if self._content is not None and self._content.closed:
@@ -459,17 +460,22 @@ class ContentWrapper(Generic[TIO], IOBase, IO[Any]):
 
     def _update_fd_state(self, *, is_open: bool | None=None, remove: bool=False) -> None:
         c = self._content
-        if c is None:
+        if c is None and self._last_fd is None:
             return
         try:
-            fd = c.fileno()
+            fd = c.fileno() if c is not None else self._last_fd
+            self._last_fd = fd
             if remove:
                 _fd_state.pop(fd, None)
                 return
             if is_open is not None:
                     _fd_state[fd] = FDState(self._path, is_open)
         except (UnsupportedOperation, OSError, ValueError):
-            pass
+            if self._last_fd is not None:
+                if remove:
+                    _fd_state.pop(self._last_fd, None)
+                elif is_open is not None:
+                    _fd_state[self._last_fd] = FDState(self._path, is_open)
 
     # -----------------------------
     # Iteration + context manager

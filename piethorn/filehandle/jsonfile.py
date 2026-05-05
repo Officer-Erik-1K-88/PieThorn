@@ -152,10 +152,9 @@ class JsonFile:
             if self.options.atomic_write:
                 self._atomic_write_text(text)
             else:
+                if self.options.backup and self.path.exists():
+                    self._write_backup_best_effort()
                 self.path.write_text(text, encoding=self.options.encoding)
-
-            if self.options.backup and not self.options.atomic_write:
-                self._write_backup_best_effort()
         finally:
             self._release_lock(lock_fd)
 
@@ -257,10 +256,9 @@ class JsonFile:
         if self.options.atomic_write:
             self._atomic_write_text(text)
         else:
+            if self.options.backup and self.path.exists():
+                self._write_backup_best_effort()
             self.path.write_text(text, encoding=self.options.encoding)
-
-        if self.options.backup and not self.options.atomic_write:
-            self._write_backup_best_effort()
 
 
 class _JsonEditContext:
