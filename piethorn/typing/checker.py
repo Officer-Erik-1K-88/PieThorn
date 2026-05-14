@@ -185,7 +185,7 @@ def _is_type_hint_arg(info: TypeInfo) -> bool:
 class TypeChecker:
     def __init__(
             self,
-            hint: TypeHint,
+            hint: TypeHint | TypeInfo,
             auto_detect_flags: bool = False,
             *,
             origin_only: bool = False,
@@ -200,7 +200,11 @@ class TypeChecker:
             literal_like: bool = False,
             allow_non_type_args: bool = False,
     ):
-        self._info = TypeInfo.build(hint)
+        if isinstance(hint, TypeChecker):
+            hint = hint.hint
+        if not isinstance(hint, TypeInfo):
+            hint = TypeInfo.build(hint)
+        self._info = hint
         self._hint = self._info
 
         if auto_detect_flags:
@@ -786,8 +790,6 @@ class TypeChecker:
 
         return len(expanded) == 0 and len(value_expanded) == 0
 
-class _FallbackType:
-    pass
 
 def _valid_iter(origin: Any) -> bool:
     """
@@ -818,7 +820,6 @@ def _is_class(origin: Any, parent: Any) -> bool:
 
 AnyType = TypeChecker(Any, origin_only=True) # This type is not in `TYPES` because `Any` will always come out as true
 ObjectType = TypeChecker(object, origin_only=True)
-FallbackType = TypeChecker(_FallbackType) # The checker that `type_check` and `type_check_type` fallback to. This checker should never be used when `self.hint == self.info`.
 TYPES: list[TypeChecker] = [
     TypeChecker(int, origin_only=True),
     TypeChecker(bool, origin_only=True),
@@ -884,7 +885,7 @@ def type_check(value, hint: Hint) -> bool:
     try:
         this_hint = get_type_checker(hint, None)
     except UnsupportedTypeHint:
-        this_hint = FallbackType
+        this_hint = TypeChecker(hint, True)
     this_hint.hint = hint
     is_type = this_hint.check_value(value)
     this_hint.hint = None
@@ -899,7 +900,7 @@ def type_check_type(value, hint: Hint) -> bool:
     try:
         this_hint = get_type_checker(hint, None)
     except UnsupportedTypeHint:
-        this_hint = FallbackType
+        this_hint = TypeChecker(hint, True)
     this_hint.hint = hint
     is_type = this_hint.check_hint(value)
     this_hint.hint = None
