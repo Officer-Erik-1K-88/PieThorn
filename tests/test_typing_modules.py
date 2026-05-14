@@ -7,7 +7,7 @@ from typing import Callable, Iterable, Literal, Mapping, Sequence
 from piethorn.typing.argument import Argument as TypedArgument
 from piethorn.typing.argument import ArgumentKind, Arguments as TypedArguments
 from piethorn.typing.analyze import Argument, Arguments, analyze
-from piethorn.typing.checker import TYPES, TypeChecker, type_check
+from piethorn.typing.checker import TYPES, TypeChecker, get_type_checker, type_check
 from piethorn.typing.flag import SetBool
 
 
@@ -146,7 +146,7 @@ class TypeCheckerModuleTests(unittest.TestCase):
             )
         }
 
-        self.assertTrue((builtin_types - collection_builtins).issubset(registered_hints))
+        self.assertTrue(all(get_type_checker(type_obj, None) for type_obj in builtin_types))
         self.assertTrue(collection_builtins.isdisjoint(registered_hints))
         self.assertTrue(type_check([1, 2], list[int]))
         self.assertFalse(type_check([1, "bad"], list[int]))
