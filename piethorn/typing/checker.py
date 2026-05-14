@@ -246,7 +246,9 @@ class TypeChecker:
 
     @hint.setter
     def hint(self, value):
-        if isinstance(value, TypeInfo):
+        if isinstance(value, TypeChecker):
+            self._hint = value.hint
+        elif isinstance(value, TypeInfo):
             self._hint = value
         elif value is None:
             self._hint = self.info
@@ -784,6 +786,9 @@ class TypeChecker:
 
         return len(expanded) == 0 and len(value_expanded) == 0
 
+class _FallbackType:
+    pass
+
 def _valid_iter(origin: Any) -> bool:
     """
     Return whether an origin is not valid for sequence or iterable type checking
@@ -813,6 +818,7 @@ def _is_class(origin: Any, parent: Any) -> bool:
 
 AnyType = TypeChecker(Any, origin_only=True) # This type is not in `TYPES` because `Any` will always come out as true
 ObjectType = TypeChecker(object, origin_only=True)
+FallbackType = TypeChecker(_FallbackType) # The checker that `type_check` and `type_check_type` fallback to. This checker should never be used when `self.hint == self.info`.
 TYPES: list[TypeChecker] = [
     TypeChecker(int, origin_only=True),
     TypeChecker(bool, origin_only=True),
@@ -862,9 +868,9 @@ def get_type_checker(hint: TypeHint | TypeInfo | TypeChecker, default:TypeChecke
         return AnyType
     if hint.hint is object:
         return ObjectType
-    for type_checker in TYPES:
-        if type_checker.check_hint(hint):
-            return type_checker
+    for tc in TYPES:
+        if tc.check_hint(hint):
+            return tc
     if default is None:
         raise UnsupportedTypeHint(f"Unsupported TypeHint: {hint.hint!r}")
     return default
@@ -875,7 +881,10 @@ def type_check(value, hint: Hint) -> bool:
             if type_check(value, h):
                 return True
         return False
-    this_hint = get_type_checker(hint, None)
+    try:
+        this_hint = get_type_checker(hint, None)
+    except UnsupportedTypeHint:
+        this_hint = FallbackType
     this_hint.hint = hint
     is_type = this_hint.check_value(value)
     this_hint.hint = None
@@ -887,7 +896,10 @@ def type_check_type(value, hint: Hint) -> bool:
             if type_check_type(value, h):
                 return True
         return False
-    this_hint = get_type_checker(hint, None)
+    try:
+        this_hint = get_type_checker(hint, None)
+    except UnsupportedTypeHint:
+        this_hint = FallbackType
     this_hint.hint = hint
     is_type = this_hint.check_hint(value)
     this_hint.hint = None
