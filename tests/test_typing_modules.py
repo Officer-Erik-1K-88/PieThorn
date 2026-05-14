@@ -1,9 +1,11 @@
 import inspect
 import unittest
+from typing import Callable, Literal
 
 from piethorn.typing.argument import Argument as TypedArgument
 from piethorn.typing.argument import ArgumentKind, Arguments as TypedArguments
 from piethorn.typing.analyze import Argument, Arguments, analyze
+from piethorn.typing.checker import TYPES, TypeChecker
 from piethorn.typing.flag import SetBool
 
 
@@ -85,6 +87,75 @@ class FlagModuleTests(unittest.TestCase):
 
         self.assertFalse(and_mode)
         self.assertTrue(or_mode)
+
+
+class TypeCheckerModuleTests(unittest.TestCase):
+    def setUp(self):
+        self.old_types = TYPES.copy()
+        TYPES[:] = [
+            TypeChecker(int, origin_only=True),
+            TypeChecker(str, origin_only=True),
+            TypeChecker(bytes, origin_only=True),
+            TypeChecker(list, sequence_like=True),
+            TypeChecker(dict, map_like=True),
+            TypeChecker(tuple, tuple_like=True),
+            TypeChecker(int | str, union_like=True),
+            TypeChecker(Literal[1, 2], literal_like=True, allow_non_type_args=True),
+            TypeChecker(Callable, callable_like=True),
+        ]
+
+    def tearDown(self):
+        TYPES[:] = self.old_types
+
+    def test_check_hint_matches_generic_arguments(self):
+        checker = TypeChecker(list[int], sequence_like=True)
+
+        self.assertTrue(checker.check_hint(list[int]))
+        self.assertFalse(checker.check_hint(list[str]))
+
+    def test_check_value_uses_value_checks_for_generic_arguments(self):
+        checker = TypeChecker(list[int], sequence_like=True)
+
+        self.assertTrue(checker.check_value([1]))
+        self.assertFalse(checker.check_value(["bad"]))
+
+    def test_check_hint_compares_nested_hints(self):
+        checker = TypeChecker(list[dict[str, int]], sequence_like=True)
+
+        self.assertTrue(checker.check_hint(list[dict[str, int]]))
+        self.assertFalse(checker.check_hint(list[dict[str, str]]))
+
+    def test_check_hint_supports_collection_like_forms(self):
+        self.assertTrue(TypeChecker(dict[str, int], map_like=True).check_hint(dict[str, int]))
+        self.assertFalse(TypeChecker(dict[str, int], map_like=True).check_hint(dict[str, str]))
+        self.assertTrue(TypeChecker(tuple[int, str], tuple_like=True).check_hint(tuple[int, str]))
+        self.assertFalse(TypeChecker(tuple[int, str], tuple_like=True).check_hint(tuple[int, int]))
+
+    def test_check_hint_supports_union_literal_and_callable_forms(self):
+        self.assertTrue(TypeChecker(int | str, union_like=True).check_hint(str | int))
+        self.assertFalse(TypeChecker(int | str, union_like=True).check_hint(int | bytes))
+        self.assertTrue(
+            TypeChecker(
+                Literal[1, 2],
+                literal_like=True,
+                allow_non_type_args=True,
+            ).check_hint(Literal[2, 1])
+        )
+        self.assertFalse(
+            TypeChecker(
+                Literal[1, 2],
+                literal_like=True,
+                allow_non_type_args=True,
+            ).check_hint(Literal[1, 3])
+        )
+        self.assertTrue(
+            TypeChecker(Callable[[int], str], callable_like=True)
+            .check_hint(Callable[[int], str])
+        )
+        self.assertFalse(
+            TypeChecker(Callable[[int], str], callable_like=True)
+            .check_hint(Callable[[str], str])
+        )
 
 
 if __name__ == "__main__":

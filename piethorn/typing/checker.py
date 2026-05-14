@@ -285,7 +285,7 @@ class TypeChecker:
                         return False
             return True
 
-        check_call = type_check_type if on_type else type_check
+        check_call = type_check if on_type else type_check_type
         unsupported: list[TypeError] = []
         for option in hint_args:
             try:
@@ -313,6 +313,41 @@ class TypeChecker:
         if hint is Any or value is Any:
             return True
         return _is_class(value, hint)
+
+    def _check_hint_map(self, value_hint: TypeInfo) -> bool:
+        if len(self.hint.args) == 0:
+            return True
+        if len(value_hint.args) == 0:
+            return False
+
+        key_hint = self.hint.args[0]
+        value_item_hint = self.hint.args[1] if len(self.hint.args) >= 2 else Any
+        value_key_hint = value_hint.args[0]
+        value_value_hint = value_hint.args[1] if len(value_hint.args) >= 2 else Any
+        return (
+                type_check_type(value_key_hint, key_hint)
+                and type_check_type(value_value_hint, value_item_hint)
+        )
+
+    def _check_hint_callable(self, value_hint: TypeInfo) -> bool:
+        if len(self.hint.args) == 0:
+            return True
+        if len(value_hint.args) == 0:
+            return False
+
+        params = self.hint.args[0]
+        value_params = value_hint.args[0]
+        expected_return = self.hint.args[1] if len(self.hint.args) > 1 else Any
+        value_return = value_hint.args[1] if len(value_hint.args) > 1 else Any
+
+        if not type_check_type(value_return, expected_return):
+            return False
+        if params is Ellipsis or value_params is Ellipsis:
+            return params is value_params
+        return (
+                len(value_params) == len(params)
+                and self._match_args(value_params, params, False, True, True)
+        )
 
     def _check_map(self, value):
         key_hint = None
@@ -574,6 +609,8 @@ class TypeChecker:
     def check_hint(self, value_hint: TypeHint | TypeInfo):
         if not isinstance(value_hint, TypeInfo):
             value_hint = TypeInfo.build(value_hint)
+        if self._origin_only and not self._ignore_origin:
+            return self._check_origin(value_hint)
 
         # inspect.Signature.empty is used for missing callable annotations.
         # Missing annotations are unknown, not incompatible.
@@ -605,11 +642,114 @@ class TypeChecker:
         if value_hint.hint in (None, NoneType):
             return self.hint.hint in (None, NoneType)
 
+        if self.hint.is_typevar:
+            constraints = getattr(self.hint.hint, "__constraints__", ())
+            if constraints:
+                return any(type_check_type(value_hint, constraint) for constraint in constraints)
+            bound = getattr(self.hint.hint, "__bound__", None)
+            if bound is not None:
+                return type_check_type(value_hint, bound)
+            return True
+        if self.hint.is_new_type:
+            old_hint = self.hint
+            self.hint = self.hint.hint.__supertype__
+            is_type = self.check_hint(value_hint)
+            self.hint = old_hint
+            return is_type
+        if value_hint.is_new_type:
+            value_hint = value_hint.replace(value_hint.hint.__supertype__)
+        if self.hint.is_metadata_wrapper:
+            old_hint = self.hint
+            self.hint = self.hint.first_arg
+            is_type = self.check_hint(value_hint)
+            self.hint = old_hint
+            return is_type
+        if value_hint.is_metadata_wrapper:
+            value_hint = value_hint.unwrap_metadata()
+        if self.hint.is_typed_dict:
+            if not value_hint.is_typed_dict:
+                return False
+
+            required_keys = set(getattr(self.hint.hint, "__required_keys__", set()))
+            optional_keys = set(getattr(self.hint.hint, "__optional_keys__", set()))
+            value_required_keys = set(getattr(value_hint.hint, "__required_keys__", set()))
+            value_optional_keys = set(getattr(value_hint.hint, "__optional_keys__", set()))
+            if required_keys != value_required_keys or optional_keys != value_optional_keys:
+                return False
+
+            annotations = getattr(self.hint.hint, "__annotations__", {})
+            value_annotations = getattr(value_hint.hint, "__annotations__", {})
+            if annotations.keys() != value_annotations.keys():
+                return False
+            return all(
+                type_check_type(
+                    _unwrap_required(value_annotations[key]),
+                    _unwrap_required(key_hint),
+                )
+                for key, key_hint in annotations.items()
+            )
+
         if not self._check_origin(value_hint):
             return False
         if self._origin_only:
             return True
-        return False
+
+        if self._map_like:
+            if self._check_hint_map(value_hint):
+                return True
+
+        if self._iterable_like or self._callable_like:
+            if len(self.hint.args) == 0:
+                return True
+
+        if self._callable_like:
+            if self._check_hint_callable(value_hint):
+                return True
+
+        if self._tuple_like:
+            if self.hint.args == ((),):
+                return value_hint.args == ((),)
+
+        old_allow_non_type_args = self._allow_non_type_args
+        self._allow_non_type_args = True
+        try:
+            expanded = self._expand_args()
+            value_expanded = self._expand_args(value_hint.args)
+        finally:
+            self._allow_non_type_args = old_allow_non_type_args
+
+        if self._iterable_like:
+            if len(expanded) == 0:
+                return True
+            if len(value_expanded) == 0:
+                return False
+            if (self._tuple_like and len(expanded) == 2 and expanded[1] is Ellipsis) or not self._tuple_like:
+                if self._tuple_like:
+                    return (
+                            len(value_expanded) == 2
+                            and value_expanded[1] is Ellipsis
+                            and type_check_type(value_expanded[0], expanded[0])
+                    )
+                return len(value_expanded) == 1 and type_check_type(value_expanded[0], expanded[0])
+
+        if self._tuple_like:
+            if len(value_expanded) == len(expanded):
+                if self._match_args(value_expanded, expanded, False, True, True):
+                    return True
+
+        if self._literal_like:
+            return len(value_expanded) == len(expanded) and all(
+                value_item in expanded
+                for value_item in value_expanded
+            )
+
+        if self._union_like:
+            return len(value_expanded) == len(expanded) and all(
+                any(type_check_type(value_item, hint_item) for hint_item in expanded)
+                for value_item in value_expanded
+            )
+
+        return len(expanded) == 0 and len(value_expanded) == 0
 
 AnyType = TypeChecker(Any, origin_only=True) # This type is not in `TYPES` because `Any` will always come out as true
 TYPES: list[TypeChecker] = []
