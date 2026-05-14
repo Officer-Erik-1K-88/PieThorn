@@ -168,6 +168,19 @@ def _callable_variadic_arg_hint(hint: TypeHint) -> TypeHint | None:
     return None
 
 
+def _is_type_hint_arg(info: TypeInfo) -> bool:
+    """Return whether an argument is itself a type hint, not runtime metadata."""
+    special_hints = (Any, None, NoneType, NoReturn, Never, LiteralString, inspect.Signature.empty)
+    return (
+            isinstance(info.hint, type)
+            or info.origin is not None
+            or info.is_typevar
+            or info.is_new_type
+            or isinstance(info.hint, (str, ForwardRef, UnionType))
+            or any(info.hint is special_hint for special_hint in special_hints)
+    )
+
+
 class TypeChecker:
     def __init__(
             self,
@@ -224,12 +237,12 @@ class TypeChecker:
             args = self.hint.args
         expanded = []
         for item in args:
-            if not isinstance(item, type):
-                if self._allow_non_type_args:
-                    expanded.append(item)
-                    continue
-                raise UnsupportedTypeHint(f"TypeHint arg not TypeHint when required: {item!r}")
             item_info = TypeInfo.build(item)
+            if not _is_type_hint_arg(item_info):
+                if not self._allow_non_type_args:
+                    raise UnsupportedTypeHint(f"TypeHint arg not TypeHint when required: {item!r}")
+                expanded.append(item)
+                continue
             if not item_info.is_unpack:
                 expanded.append(item)
                 continue
@@ -710,13 +723,8 @@ class TypeChecker:
             if self.hint.args == ((),):
                 return value_hint.args == ((),)
 
-        old_allow_non_type_args = self._allow_non_type_args
-        self._allow_non_type_args = True
-        try:
-            expanded = self._expand_args()
-            value_expanded = self._expand_args(value_hint.args)
-        finally:
-            self._allow_non_type_args = old_allow_non_type_args
+        expanded = self._expand_args()
+        value_expanded = self._expand_args(value_hint.args)
 
         if self._iterable_like:
             if len(expanded) == 0:

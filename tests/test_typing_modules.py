@@ -101,7 +101,7 @@ class TypeCheckerModuleTests(unittest.TestCase):
             TypeChecker(tuple, tuple_like=True),
             TypeChecker(int | str, union_like=True),
             TypeChecker(Literal[1, 2], literal_like=True, allow_non_type_args=True),
-            TypeChecker(Callable, callable_like=True),
+            TypeChecker(Callable, callable_like=True, allow_non_type_args=True),
         ]
 
     def tearDown(self):
@@ -149,11 +149,19 @@ class TypeCheckerModuleTests(unittest.TestCase):
             ).check_hint(Literal[1, 3])
         )
         self.assertTrue(
-            TypeChecker(Callable[[int], str], callable_like=True)
+            TypeChecker(
+                Callable[[int], str],
+                callable_like=True,
+                allow_non_type_args=True,
+            )
             .check_hint(Callable[[int], str])
         )
         self.assertFalse(
-            TypeChecker(Callable[[int], str], callable_like=True)
+            TypeChecker(
+                Callable[[int], str],
+                callable_like=True,
+                allow_non_type_args=True,
+            )
             .check_hint(Callable[[str], str])
         )
 
