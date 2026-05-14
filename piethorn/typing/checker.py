@@ -240,6 +240,16 @@ class TypeChecker:
         self._literal_like = literal_like
         self._allow_non_type_args = allow_non_type_args
 
+        self._has_flags = (
+                self._tuple_like or
+                self._sequence_like or
+                self._iterable_like or
+                self._map_like or
+                self._callable_like or
+                self._union_like or
+                self._literal_like
+        )
+
     @property
     def info(self):
         return self._info
@@ -601,6 +611,11 @@ class TypeChecker:
                 return False
             if self._origin_only:
                 return True
+
+        if not self._has_flags:
+            if self._ignore_origin:
+                raise UnsupportedTypeHint("Cannot have a TypeChecker that ignores origin when it has no flags")
+            return True
 
         if self._map_like:
             if self._check_map(value):

@@ -2,17 +2,24 @@ import builtins
 import inspect
 import unittest
 from collections import abc as collections_abc
-from typing import Callable, Iterable, Literal, Mapping, Sequence
+from typing import Callable, Generic, Iterable, Literal, Mapping, Sequence, TypeVar
 
 from piethorn.typing.argument import Argument as TypedArgument
 from piethorn.typing.argument import ArgumentKind, Arguments as TypedArguments
 from piethorn.typing.analyze import Argument, Arguments, analyze
-from piethorn.typing.checker import TYPES, TypeChecker, get_type_checker, type_check
+from piethorn.typing.checker import TYPES, TypeChecker, get_type_checker, type_check, type_check_type
 from piethorn.typing.flag import SetBool
 
 
 def sample_signature(a, /, b: int, *args, c=3, **kwargs) -> str:
     return "ok"
+
+
+T = TypeVar("T")
+
+
+class Box(Generic[T]):
+    pass
 
 
 class ArgumentModuleTests(unittest.TestCase):
@@ -155,6 +162,14 @@ class TypeCheckerModuleTests(unittest.TestCase):
         self.assertTrue(type_check({1, 2}, set[int]))
         self.assertTrue(type_check(frozenset({1, 2}), frozenset[int]))
         self.assertTrue(type_check(range(3), range))
+
+    def test_fallback_checker_handles_unsupported_generic_classes(self):
+        TYPES[:] = self.old_types
+
+        self.assertTrue(type_check(Box(), Box[int]))
+        self.assertFalse(type_check(object(), Box[int]))
+        self.assertTrue(type_check_type(Box[int], Box[int]))
+        self.assertFalse(type_check_type(Box[str], Box[int]))
 
     def test_check_hint_compares_nested_hints(self):
         checker = TypeChecker(list[dict[str, int]], sequence_like=True)
