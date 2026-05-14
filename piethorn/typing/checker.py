@@ -574,6 +574,37 @@ class TypeChecker:
     def check_hint(self, value_hint: TypeHint | TypeInfo):
         if not isinstance(value_hint, TypeInfo):
             value_hint = TypeInfo.build(value_hint)
+
+        # inspect.Signature.empty is used for missing callable annotations.
+        # Missing annotations are unknown, not incompatible.
+        if value_hint.hint is inspect.Signature.empty or self.hint.hint is inspect.Signature.empty:
+            return True
+        if value_hint.hint is Any or self.hint.hint is Any:
+            return True
+        if value_hint.hint == self.hint.hint:
+            return True
+        if isinstance(value_hint.hint, str) or isinstance(value_hint.hint, ForwardRef):
+            raise UnsupportedTypeHint(f"Forward references are not supported at runtime: {value_hint.hint!r}")
+        if isinstance(self.hint.hint, str) or isinstance(self.hint.hint, ForwardRef):
+            raise UnsupportedTypeHint(f"Forward references are not supported at runtime: {self.hint.hint!r}")
+
+        # NoReturn/Never describe an impossible value set. An impossible value
+        # set is a subtype of everything.
+        if self.hint.hint in (NoReturn, Never):
+            return True
+        if value_hint.hint in (NoReturn, Never):
+            return self.hint.hint in (NoReturn, Never)
+        if value_hint.hint is object:
+            return True
+        if self.hint.hint is object:
+            return value_hint.hint is object
+        if value_hint.hint is LiteralString:
+            return self.hint.hint is LiteralString or self.check_hint(str)
+        if self.hint.hint is LiteralString:
+            return type_check_type(str, value_hint.hint)
+        if value_hint.hint in (None, NoneType):
+            return self.hint.hint in (None, NoneType)
+
         if not self._check_origin(value_hint):
             return False
         if self._origin_only:
@@ -616,7 +647,7 @@ def type_check_type(value, hint: Hint) -> bool:
             if type_check_type(value, h):
                 return True
         return False
-    this_hint = get_type_checker(hint)
+    this_hint = get_type_checker(hint, None)
     this_hint.hint = hint
     is_type = this_hint.check_hint(value)
     this_hint.hint = None
