@@ -110,17 +110,23 @@ class TypeInfo:
     @property
     def is_mapping_origin(self) -> bool:
         """Whether the hint's origin behaves like a mapping."""
-        return _is_mapping_origin(self.origin)
+        return _is_origin_subclass(self.origin, collections_abc.Mapping)
 
     @property
     def is_sequence_origin(self) -> bool:
         """Whether the hint's origin behaves like a non-string sequence."""
-        return _is_sequence_origin(self.origin)
+        return (
+            _is_origin_subclass(self.origin, collections_abc.Sequence)
+            and _valid_iter(self.origin)
+        )
 
     @property
     def is_iterable_origin(self) -> bool:
         """Whether the hint's origin behaves like a non-string iterable."""
-        return _is_iterable_origin(self.origin)
+        return (
+                _is_origin_subclass(self.origin, collections_abc.Iterable)
+                and _valid_iter(self.origin)
+        )
 
     @property
     def first_arg(self) -> TypeHint:
@@ -134,25 +140,12 @@ class TypeInfo:
             info = info.replace(info.first_arg)
         return info
 
-def _is_mapping_origin(origin: Any) -> bool:
-    """Return whether an origin behaves like ``collections.abc.Mapping``."""
-    return _is_origin_subclass(origin, collections_abc.Mapping)
-
-
-def _is_sequence_origin(origin: Any) -> bool:
-    """Return whether an origin is a non-string sequence."""
-    return (
-        _is_origin_subclass(origin, collections_abc.Sequence)
-        and not _is_origin_subclass(origin, (str, bytes, bytearray))
-    )
-
-
-def _is_iterable_origin(origin: Any) -> bool:
-    """Return whether an origin is a non-string iterable."""
-    return (
-        _is_origin_subclass(origin, collections_abc.Iterable)
-        and not _is_origin_subclass(origin, (str, bytes, bytearray))
-    )
+def _valid_iter(origin: Any) -> bool:
+    """
+    Return whether an origin is not valid for sequence or iterable type checking
+    even though of sound type.
+    """
+    return not _is_origin_subclass(origin, (str, bytes, bytearray))
 
 
 def _is_origin_subclass(origin: Any, parent: Any) -> bool:
