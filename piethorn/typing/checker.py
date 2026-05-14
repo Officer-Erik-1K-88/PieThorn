@@ -185,10 +185,11 @@ class TypeChecker:
     def __init__(
             self,
             hint: TypeHint,
+            auto_detect_flags: bool = False,
             *,
-            origin_only: bool=False,
-            accepts_unpack: bool=False,
-            ignore_origin: bool=False,
+            origin_only: bool = False,
+            accepts_unpack: bool = False,
+            ignore_origin: bool = False,
             tuple_like: bool = False,
             sequence_like: bool = False,
             iterable_like: bool = False,
@@ -196,10 +197,31 @@ class TypeChecker:
             callable_like: bool = False,
             union_like: bool = False,
             literal_like: bool = False,
-            allow_non_type_args: bool=False,
+            allow_non_type_args: bool = False,
     ):
         self._info = TypeInfo.build(hint)
         self._hint = self._info
+
+        if auto_detect_flags:
+            origin_only = len(self._info.args) == 0
+            tuple_like = self._info.is_tuple_origin
+            sequence_like = self._info.is_sequence_origin
+            iterable_like = self._info.is_iterable_origin
+            map_like = self._info.is_mapping_origin
+            callable_like = self._info.is_callable_origin
+            union_like = self._info.is_union
+            literal_like = self._info.is_literal
+            allow_non_type_args = literal_like
+            ignore_origin = literal_like or union_like or callable_like
+            accepts_unpack = (
+                    tuple_like or
+                    sequence_like or
+                    iterable_like or
+                    map_like or
+                    callable_like or
+                    union_like
+            )
+
         self._origin_only = origin_only
         self._accepts_unpack = accepts_unpack
         self._ignore_origin = ignore_origin
