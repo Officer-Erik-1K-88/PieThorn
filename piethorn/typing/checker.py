@@ -17,7 +17,7 @@ from typing import (
     TypeAlias,
     TypeVar,
     get_args,
-    get_origin, Iterable, Sequence,
+    get_origin, Iterable, Sequence, Callable, Union, Unpack, Mapping,
 )
 
 TypeHint: TypeAlias = Any
@@ -60,12 +60,12 @@ class TypeInfo:
     @property
     def is_union(self) -> bool:
         """Whether the hint is PEP 604 union syntax or ``typing.Union``."""
-        return self.origin is UnionType or isinstance(self.hint, UnionType) or self.origin is getattr(__import__("typing"), "Union")
+        return self.origin is UnionType or isinstance(self.hint, UnionType) or self.origin is Union
 
     @property
     def is_unpack(self) -> bool:
         """Whether the hint is ``typing.Unpack[...]``."""
-        return self.origin is getattr(__import__("typing"), "Unpack")
+        return self.origin is Unpack
 
     @property
     def is_typevar(self) -> bool:
@@ -782,7 +782,22 @@ class TypeChecker:
         return len(expanded) == 0 and len(value_expanded) == 0
 
 AnyType = TypeChecker(Any, origin_only=True) # This type is not in `TYPES` because `Any` will always come out as true
-TYPES: list[TypeChecker] = []
+TYPES: list[TypeChecker] = [
+    TypeChecker(int, origin_only=True),
+    TypeChecker(float, origin_only=True),
+    TypeChecker(complex, origin_only=True),
+    TypeChecker(str, origin_only=True),
+    TypeChecker(bytes, origin_only=True),
+    TypeChecker(tuple, tuple_like=True),
+    TypeChecker(Mapping, map_like=True),
+    TypeChecker(Sequence, sequence_like=True),
+    TypeChecker(Iterable, iterable_like=True),
+    TypeChecker(UnionType | Union, union_like=True, ignore_origin=True),
+    TypeChecker(Literal, literal_like=True, allow_non_type_args=True),
+    TypeChecker(Callable, callable_like=True, allow_non_type_args=True),
+    TypeChecker(type, origin_only=True),
+    TypeChecker(object, origin_only=True),
+]
 
 Hint: TypeAlias = TypeHint | TypeInfo | TypeChecker
 Hint = Hint | tuple[Hint, ...]
@@ -792,6 +807,8 @@ def get_type_checker(hint: TypeHint | TypeInfo | TypeChecker, default:TypeChecke
         return hint
     if not isinstance(hint, TypeInfo):
         hint = TypeInfo.build(hint)
+    if hint.hint is Any:
+        return AnyType
     for type_checker in TYPES:
         if type_checker.check_hint(hint):
             return type_checker
