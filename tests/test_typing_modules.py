@@ -1,11 +1,13 @@
+import builtins
 import inspect
 import unittest
-from typing import Callable, Literal
+from collections import abc as collections_abc
+from typing import Callable, Iterable, Literal, Mapping, Sequence
 
 from piethorn.typing.argument import Argument as TypedArgument
 from piethorn.typing.argument import ArgumentKind, Arguments as TypedArguments
 from piethorn.typing.analyze import Argument, Arguments, analyze
-from piethorn.typing.checker import TYPES, TypeChecker
+from piethorn.typing.checker import TYPES, TypeChecker, type_check
 from piethorn.typing.flag import SetBool
 
 
@@ -96,9 +98,10 @@ class TypeCheckerModuleTests(unittest.TestCase):
             TypeChecker(int, origin_only=True),
             TypeChecker(str, origin_only=True),
             TypeChecker(bytes, origin_only=True),
-            TypeChecker(list, sequence_like=True),
-            TypeChecker(dict, map_like=True),
             TypeChecker(tuple, tuple_like=True),
+            TypeChecker(Mapping, map_like=True),
+            TypeChecker(Sequence, sequence_like=True),
+            TypeChecker(Iterable, iterable_like=True),
             TypeChecker(int | str, union_like=True),
             TypeChecker(Literal[1, 2], literal_like=True, allow_non_type_args=True),
             TypeChecker(Callable, callable_like=True, allow_non_type_args=True),
@@ -118,6 +121,40 @@ class TypeCheckerModuleTests(unittest.TestCase):
 
         self.assertTrue(checker.check_value([1]))
         self.assertFalse(checker.check_value(["bad"]))
+
+    def test_default_registry_covers_builtin_types(self):
+        TYPES[:] = self.old_types
+        registered_hints = {type_checker.info.hint for type_checker in TYPES}
+        builtin_types = {
+            type_obj
+            for name, type_obj in vars(builtins).items()
+            if isinstance(type_obj, type) and name != "__loader__"
+        }
+        collection_builtins = {
+            type_obj
+            for type_obj in builtin_types
+            if (
+                    issubclass(type_obj, collections_abc.Mapping)
+                    or (
+                            issubclass(type_obj, collections_abc.Sequence)
+                            and type_obj not in (str, bytes, bytearray, tuple)
+                    )
+                    or (
+                            issubclass(type_obj, collections_abc.Iterable)
+                            and type_obj not in (str, bytes, bytearray, tuple)
+                    )
+            )
+        }
+
+        self.assertTrue((builtin_types - collection_builtins).issubset(registered_hints))
+        self.assertTrue(collection_builtins.isdisjoint(registered_hints))
+        self.assertTrue(type_check([1, 2], list[int]))
+        self.assertFalse(type_check([1, "bad"], list[int]))
+        self.assertTrue(type_check({"a": 1}, dict[str, int]))
+        self.assertFalse(type_check({"a": "bad"}, dict[str, int]))
+        self.assertTrue(type_check({1, 2}, set[int]))
+        self.assertTrue(type_check(frozenset({1, 2}), frozenset[int]))
+        self.assertTrue(type_check(range(3), range))
 
     def test_check_hint_compares_nested_hints(self):
         checker = TypeChecker(list[dict[str, int]], sequence_like=True)

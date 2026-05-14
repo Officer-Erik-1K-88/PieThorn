@@ -1,3 +1,4 @@
+import builtins
 import inspect
 from collections import abc as collections_abc
 from dataclasses import dataclass
@@ -347,7 +348,9 @@ class TypeChecker:
         hint = self.hint.origin if self.hint.origin is not None else self.hint.hint
         if hint is Any or value is Any:
             return True
-        return _is_class(value, hint)
+        if _is_class(value, hint):
+            return True
+        return _is_subclass(value, hint)
 
     def _check_hint_map(self, value_hint: TypeInfo) -> bool:
         if len(self.hint.args) == 0:
@@ -781,14 +784,46 @@ class TypeChecker:
 
         return len(expanded) == 0 and len(value_expanded) == 0
 
+def _valid_iter(origin: Any) -> bool:
+    """
+    Return whether an origin is not valid for sequence or iterable type checking
+    even though of sound type.
+    """
+    return not _is_subclass(origin, (str, bytes, bytearray))
+
+
+def _is_subclass(origin: Any, parent: Any) -> bool:
+    """Safe ``issubclass`` wrapper for origin objects from typing aliases."""
+    try:
+        return isinstance(origin, type) and issubclass(origin, parent)
+    except TypeError:
+        return False
+
+def _is_class(origin: Any, parent: Any) -> bool:
+    if isinstance(parent, tuple):
+        for item in parent:
+            if _is_class(origin, item):
+                return True
+        return False
+    try:
+        return origin is parent
+    except TypeError:
+        return False
+
+
 AnyType = TypeChecker(Any, origin_only=True) # This type is not in `TYPES` because `Any` will always come out as true
+ObjectType = TypeChecker(object, origin_only=True)
 TYPES: list[TypeChecker] = [
     TypeChecker(int, origin_only=True),
+    TypeChecker(bool, origin_only=True),
     TypeChecker(float, origin_only=True),
     TypeChecker(complex, origin_only=True),
     TypeChecker(str, origin_only=True),
     TypeChecker(bytes, origin_only=True),
+    TypeChecker(bytearray, origin_only=True),
     TypeChecker(tuple, tuple_like=True),
+    TypeChecker(slice, origin_only=True),
+    TypeChecker(NoneType),
     TypeChecker(Mapping, map_like=True),
     TypeChecker(Sequence, sequence_like=True),
     TypeChecker(Iterable, iterable_like=True),
@@ -796,8 +831,24 @@ TYPES: list[TypeChecker] = [
     TypeChecker(Literal, literal_like=True, allow_non_type_args=True),
     TypeChecker(Callable, callable_like=True, allow_non_type_args=True),
     TypeChecker(type, origin_only=True),
-    TypeChecker(object, origin_only=True),
 ]
+for builtin_type in dict.fromkeys(
+    type_obj
+    for name, type_obj in vars(builtins).items()
+    if isinstance(type_obj, type) and name != "__loader__"
+):
+    if builtin_type not in {
+        object,
+        Any,
+        type,
+    }:
+        can_build = True
+        for type_checker in TYPES:
+            if _is_subclass(builtin_type, type_checker.info.hint) or _is_class(builtin_type, type_checker.info.hint):
+                can_build = False
+                break
+        if can_build:
+            TYPES.append(TypeChecker(builtin_type, origin_only=True))
 
 Hint: TypeAlias = TypeHint | TypeInfo | TypeChecker
 Hint = Hint | tuple[Hint, ...]
@@ -809,6 +860,8 @@ def get_type_checker(hint: TypeHint | TypeInfo | TypeChecker, default:TypeChecke
         hint = TypeInfo.build(hint)
     if hint.hint is Any:
         return AnyType
+    if hint.hint is object:
+        return ObjectType
     for type_checker in TYPES:
         if type_checker.check_hint(hint):
             return type_checker
@@ -839,30 +892,3 @@ def type_check_type(value, hint: Hint) -> bool:
     is_type = this_hint.check_hint(value)
     this_hint.hint = None
     return is_type
-
-
-def _valid_iter(origin: Any) -> bool:
-    """
-    Return whether an origin is not valid for sequence or iterable type checking
-    even though of sound type.
-    """
-    return not _is_subclass(origin, (str, bytes, bytearray))
-
-
-def _is_subclass(origin: Any, parent: Any) -> bool:
-    """Safe ``issubclass`` wrapper for origin objects from typing aliases."""
-    try:
-        return isinstance(origin, type) and issubclass(origin, parent)
-    except TypeError:
-        return False
-
-def _is_class(origin: Any, parent: Any) -> bool:
-    if isinstance(parent, tuple):
-        for item in parent:
-            if _is_class(origin, item):
-                return True
-        return False
-    try:
-        return origin is parent
-    except TypeError:
-        return False
