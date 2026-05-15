@@ -668,8 +668,6 @@ class TypeChecker:
     def check_hint(self, value_hint: TypeHint | TypeInfo):
         if not isinstance(value_hint, TypeInfo):
             value_hint = TypeInfo.build(value_hint)
-        if self._origin_only and not self._ignore_origin:
-            return self._check_origin(value_hint)
 
         # inspect.Signature.empty is used for missing callable annotations.
         # Missing annotations are unknown, not incompatible.
@@ -748,26 +746,25 @@ class TypeChecker:
                 for key, key_hint in annotations.items()
             )
 
-        if not self._check_origin(value_hint):
-            return False
+        origin_matches = self._check_origin(value_hint)
         if self._origin_only:
-            return True
+            return origin_matches
 
         if self._map_like:
-            if self._check_hint_map(value_hint):
+            if self._check_hint_map(value_hint) and (self._ignore_origin or origin_matches):
                 return True
 
         if self._iterable_like or self._callable_like:
             if len(self.hint.args) == 0:
-                return True
+                return origin_matches
 
         if self._callable_like:
-            if self._check_hint_callable(value_hint):
+            if self._check_hint_callable(value_hint) and (self._ignore_origin or origin_matches):
                 return True
 
         if self._tuple_like:
             if self.hint.args == ((),):
-                return value_hint.args == ((),)
+                return value_hint.args == ((),) and (self._ignore_origin or origin_matches)
 
         expanded = self._expand_args()
         value_expanded = self._expand_args(value_hint.args)
@@ -783,12 +780,20 @@ class TypeChecker:
                             len(value_expanded) == 2
                             and value_expanded[1] is Ellipsis
                             and type_check_type(value_expanded[0], expanded[0])
+                            and (self._ignore_origin or origin_matches)
                     )
-                return len(value_expanded) == 1 and type_check_type(value_expanded[0], expanded[0])
+                return (
+                        len(value_expanded) == 1
+                        and type_check_type(value_expanded[0], expanded[0])
+                        and (self._ignore_origin or origin_matches)
+                )
 
         if self._tuple_like:
             if len(value_expanded) == len(expanded):
-                if self._match_args(value_expanded, expanded, False, True, True):
+                if (
+                        self._match_args(value_expanded, expanded, False, True, True)
+                        and (self._ignore_origin or origin_matches)
+                ):
                     return True
 
         if self._literal_like:
@@ -803,7 +808,11 @@ class TypeChecker:
                 for value_item in value_expanded
             )
 
-        return len(expanded) == 0 and len(value_expanded) == 0
+        if len(value_expanded) != len(expanded):
+            return False
+        if len(expanded) != 0 and not self._match_args(value_expanded, expanded, False, True, True):
+            return False
+        return origin_matches
 
 
 def _valid_iter(origin: Any) -> bool:

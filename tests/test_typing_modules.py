@@ -122,6 +122,7 @@ class TypeCheckerModuleTests(unittest.TestCase):
 
         self.assertTrue(checker.check_hint(list[int]))
         self.assertFalse(checker.check_hint(list[str]))
+        self.assertFalse(checker.check_hint(tuple[int]))
 
     def test_check_value_uses_value_checks_for_generic_arguments(self):
         checker = TypeChecker(list[int], sequence_like=True)
@@ -186,6 +187,13 @@ class TypeCheckerModuleTests(unittest.TestCase):
     def test_check_hint_supports_union_literal_and_callable_forms(self):
         self.assertTrue(TypeChecker(int | str, union_like=True).check_hint(str | int))
         self.assertFalse(TypeChecker(int | str, union_like=True).check_hint(int | bytes))
+        self.assertTrue(
+            TypeChecker(
+                int | str,
+                union_like=True,
+                ignore_origin=True,
+            ).check_hint(str | int)
+        )
         self.assertTrue(
             TypeChecker(
                 Literal[1, 2],
