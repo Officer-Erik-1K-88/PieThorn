@@ -28,12 +28,47 @@ _TYPEVAR_TYPE = type(TypeVar("_TYPEVAR_TYPE"))
 
 
 class UnsupportedTypeHint(TypeError):
-    """Raised when a type hint cannot be checked at runtime."""
+    """
+    Raised when a type hint cannot be checked at runtime.
+
+    The checker raises this when a hint cannot be resolved into a supported
+    runtime strategy. This is different from a normal ``False`` result: a
+    ``False`` result means the hint was understood and did not match, while
+    this exception means the hint was not supported by this checker.
+
+    Args:
+        *args: Standard ``TypeError`` message arguments.
+    """
 
 class UnsupportedTypeHintGroup(ExceptionGroup[TypeError], UnsupportedTypeHint):
-    """Raised when a group of ``UnsupportedTypeHint``s are to be raised."""
+    """
+    Raised when multiple type-hint checks fail for unsupported-hint reasons.
+
+    This is used for union-like paths where several alternatives may be tried
+    before the checker can decide that none of the alternatives were supported.
+    Grouping preserves every underlying failure instead of hiding useful detail
+    behind the last exception.
+
+    Args:
+        message: Human-readable message for the grouped failure.
+        exceptions: The unsupported-hint errors collected while checking.
+    """
 
     def __init__(self, message: str, exceptions: Sequence[TypeError]):
+        """
+        Build an unsupported-hint exception group.
+
+        Args:
+            message: Message passed to ``ExceptionGroup``.
+            exceptions: Individual ``TypeError`` instances to group.
+
+        Returns:
+            None.
+
+        Raises:
+            TypeError: If ``ExceptionGroup`` rejects the supplied exception
+                sequence.
+        """
         ExceptionGroup.__init__(self, message, exceptions)
 
 @dataclass(frozen=True)
@@ -81,27 +116,58 @@ class TypeInfo:
 
     @property
     def is_union(self) -> bool:
-        """Whether the hint is PEP 604 union syntax or ``typing.Union``."""
+        """
+        Whether the hint is PEP 604 union syntax or ``typing.Union``.
+
+        Returns:
+            ``True`` for hints such as ``int | str`` and ``typing.Union[int,
+            str]``. Returns ``False`` for non-union hints.
+        """
         return self.origin is UnionType or isinstance(self.hint, UnionType) or self.origin is Union
 
     @property
     def is_unpack(self) -> bool:
-        """Whether the hint is ``typing.Unpack[...]``."""
+        """
+        Whether the hint is ``typing.Unpack[...]``.
+
+        Returns:
+            ``True`` when ``typing.get_origin`` identifies the hint as
+            ``Unpack``. Returns ``False`` otherwise.
+        """
         return self.origin is Unpack
 
     @property
     def is_typevar(self) -> bool:
-        """Whether the hint is a TypeVar instance."""
+        """
+        Whether the hint is a TypeVar instance.
+
+        Returns:
+            ``True`` when the raw hint has the runtime TypeVar implementation
+            type. Returns ``False`` otherwise.
+        """
         return isinstance(self.hint, _TYPEVAR_TYPE)
 
     @property
     def is_new_type(self) -> bool:
-        """Whether the hint was created with ``typing.NewType``."""
+        """
+        Whether the hint was created with ``typing.NewType``.
+
+        Returns:
+            ``True`` when the hint is callable and exposes ``__supertype__``.
+            Returns ``False`` for ordinary callables/classes.
+        """
         return callable(self.hint) and hasattr(self.hint, "__supertype__")
 
     @property
     def is_typed_dict(self) -> bool:
-        """Whether the hint is a TypedDict declaration."""
+        """
+        Whether the hint is a TypedDict declaration.
+
+        Returns:
+            ``True`` when the hint is a dict subclass with TypedDict key
+            metadata and annotations. Returns ``False`` for normal dict classes
+            and mapping aliases.
+        """
         return (
             isinstance(self.hint, type)
             and issubclass(self.hint, dict)
@@ -112,37 +178,79 @@ class TypeInfo:
 
     @property
     def is_metadata_wrapper(self) -> bool:
-        """Whether the hint wraps another hint without changing runtime shape."""
+        """
+        Whether the hint wraps another hint without changing runtime shape.
+
+        Returns:
+            ``True`` for wrappers such as ``Annotated``, ``Final``, ``ClassVar``,
+            ``Required``, and ``NotRequired``. Returns ``False`` otherwise.
+        """
         return _is_class(self.origin, (Annotated, Final, ClassVar, Required, NotRequired))
 
     @property
     def is_literal(self) -> bool:
-        """Whether the hint is ``Literal[...]``."""
+        """
+        Whether the hint is ``Literal[...]``.
+
+        Returns:
+            ``True`` when the hint's origin is ``Literal``. Returns ``False``
+            otherwise.
+        """
         return _is_class(self.origin, Literal)
 
     @property
     def is_type_origin(self) -> bool:
-        """Whether the hint is ``type`` or ``type[T]``."""
+        """
+        Whether the hint is ``type`` or ``type[T]``.
+
+        Returns:
+            ``True`` when the hint's origin is ``type``. Returns ``False`` for
+            non-class-object hints.
+        """
         return _is_class(self.origin, type)
 
     @property
     def is_callable_origin(self) -> bool:
-        """Whether the hint is a Callable alias."""
+        """
+        Whether the hint is a Callable alias.
+
+        Returns:
+            ``True`` when the hint origin is compatible with
+            ``collections.abc.Callable``. Returns ``False`` otherwise.
+        """
         return _is_class(self.origin, collections_abc.Callable)
 
     @property
     def is_tuple_origin(self) -> bool:
-        """Whether the hint is a tuple alias."""
+        """
+        Whether the hint is a tuple alias.
+
+        Returns:
+            ``True`` when the hint origin is a tuple subclass. Returns ``False``
+            otherwise.
+        """
         return _is_subclass(self.origin, tuple)
 
     @property
     def is_mapping_origin(self) -> bool:
-        """Whether the hint's origin behaves like a mapping."""
+        """
+        Whether the hint's origin behaves like a mapping.
+
+        Returns:
+            ``True`` when the origin is a ``collections.abc.Mapping`` subclass.
+            Returns ``False`` otherwise.
+        """
         return _is_subclass(self.origin, collections_abc.Mapping)
 
     @property
     def is_sequence_origin(self) -> bool:
-        """Whether the hint's origin behaves like a non-string sequence."""
+        """
+        Whether the hint's origin behaves like a non-string sequence.
+
+        Returns:
+            ``True`` when the origin is a sequence and is not treated as a
+            scalar string-like type by this checker.
+        """
         return (
             _is_subclass(self.origin, collections_abc.Sequence)
             and _valid_iter(self.origin)
@@ -150,7 +258,13 @@ class TypeInfo:
 
     @property
     def is_iterable_origin(self) -> bool:
-        """Whether the hint's origin behaves like a non-string iterable."""
+        """
+        Whether the hint's origin behaves like a non-string iterable.
+
+        Returns:
+            ``True`` when the origin is iterable and is not treated as a scalar
+            string-like type by this checker.
+        """
         return (
                 _is_subclass(self.origin, collections_abc.Iterable)
                 and _valid_iter(self.origin)
@@ -158,13 +272,26 @@ class TypeInfo:
 
     @property
     def first_arg(self) -> TypeHint:
-        """Return the first argument or Any when no argument was provided."""
+        """
+        Return the first argument or ``Any`` when no argument was provided.
+
+        Returns:
+            ``self.args[0]`` when at least one argument exists. Otherwise
+            returns ``Any`` as a permissive default.
+        """
         return self.args[0] if self.args else Any
 
     def unwrap_metadata(self) -> TypeInfo:
-        """Strip runtime-neutral wrappers such as Annotated and Required."""
+        """
+        Strip runtime-neutral metadata wrappers.
+
+        Returns:
+            A ``TypeInfo`` for the first non-wrapper hint inside chains such as
+            ``Annotated[Final[int], ...]`` or ``Required[Annotated[str, ...]]``.
+        """
         info = self
         while info.is_metadata_wrapper:
+            # Every supported wrapper stores its wrapped type as the first arg.
             info = info.replace(info.first_arg)
         return info
 
@@ -312,14 +439,23 @@ class TypeChecker:
         self._hint = self._info
 
         if auto_detect_flags:
+            # Plain, non-parameterized hints can be checked with origin alone.
             origin_only = len(self._info.args) == 0
+            # Tuple gets its own flag because tuple hints may be fixed length.
             tuple_like = self._info.is_tuple_origin
+            # Sequence implies iterable behavior through the stored flags below.
             sequence_like = self._info.is_sequence_origin
+            # Iterable is the fallback for set/range/generator-like shapes.
             iterable_like = self._info.is_iterable_origin
+            # Mapping has key/value semantics instead of item-only semantics.
             map_like = self._info.is_mapping_origin
+            # Callable checks parameter lists and return hints.
             callable_like = self._info.is_callable_origin
+            # Union checks each alternative as a possible match.
             union_like = self._info.is_union
+            # Literal checks runtime payload values instead of type origins.
             literal_like = self._info.is_literal
+            # Literal args are values, not type hints.
             allow_non_type_args = literal_like
             # These forms are defined by args more than by origin.
             ignore_origin = literal_like or union_like or callable_like
@@ -337,8 +473,10 @@ class TypeChecker:
         self._accepts_unpack = accepts_unpack
         self._ignore_origin = ignore_origin
 
+        # Tuple is also a sequence.
         self._tuple_like = tuple_like
         self._sequence_like = sequence_like or self._tuple_like
+        # Sequence is also iterable.
         self._iterable_like = iterable_like or self._sequence_like
         self._map_like = map_like
         self._callable_like = callable_like
@@ -381,12 +519,15 @@ class TypeChecker:
         """
         # ``None`` resets a reusable registry checker to its template hint.
         if isinstance(value, TypeChecker):
+            # Keep the active hint from another checker, not its template.
             self._hint = value.hint
         elif isinstance(value, TypeInfo):
+            # TypeInfo is already normalized and can be stored directly.
             self._hint = value
         elif value is None:
             self._hint = self.info
         else:
+            # Raw hints are normalized once at assignment time.
             self._hint = TypeInfo.build(value)
 
     def _expand_args(self, args=None):
@@ -409,6 +550,7 @@ class TypeChecker:
                 be represented by this checker.
         """
         if args is None:
+            # Default to the active hint's arguments.
             args = self.hint.args
         expanded = []
         for item in args:
@@ -420,6 +562,7 @@ class TypeChecker:
                 expanded.append(item)
                 continue
             if not item_info.is_unpack:
+                # Normal type-hint args are already usable.
                 expanded.append(item)
                 continue
 
@@ -436,6 +579,7 @@ class TypeChecker:
                 continue
 
             if unpacked.is_tuple_origin:
+                # Tuple unpacking is the only fixed positional expansion here.
                 if len(unpacked.args) == 2 and unpacked.args[1] is Ellipsis:
                     # Variadic tuple unpacking cannot mix with fixed args.
                     if len(args) == 1:
@@ -446,6 +590,7 @@ class TypeChecker:
                 continue
 
             if unpacked.is_typevar:
+                # Preserve the TypeVar for its own constraint/bound handling.
                 expanded.append(unpacked.hint)
                 continue
 
@@ -493,10 +638,12 @@ class TypeChecker:
             if not isinstance(value, Iterable):
                 raise TypeError(f"Expected an iterable, got {type(value)!r}")
             if zip_val_hint:
+                # Positional matching: value[i] must satisfy hint_args[i].
                 for item, hint in zip(value, hint_args):
                     if not self._match_args(item, [hint], on_type, False, False, act_as_any):
                         return False
             else:
+                # Homogeneous/union matching: each item may use any hint arg.
                 for item in value:
                     if not self._match_args(item, hint_args, on_type, False, False, act_as_any):
                         return False
@@ -506,15 +653,18 @@ class TypeChecker:
         unsupported: list[TypeError] = []
         for option in hint_args:
             try:
+                # ``act_as_any`` means one successful option is enough.
                 if check_call(value, option):
                     if act_as_any:
                         return True
                 else:
+                    # Without union-like behavior, the first mismatch fails.
                     if not act_as_any:
                         return False
             except (TypeError, UnsupportedTypeHint) as exc:
                 if not act_as_any:
                     raise exc
+                # In union-like mode, collect unsupported options and continue.
                 unsupported.append(exc)
         # Unsupported alternatives should surface loudly instead of silently
         # weakening a union/tuple-of-types check.
@@ -542,7 +692,9 @@ class TypeChecker:
         if hint is Any or value is Any:
             return True
         if _is_class(value, hint):
+            # Exact origin match.
             return True
+        # Subclass origin match, e.g. list against Sequence.
         return _is_subclass(value, hint)
 
     def _check_hint_map(self, value_hint: TypeInfo) -> bool:
@@ -562,10 +714,13 @@ class TypeChecker:
                 unsupported by the registry/fallback checker.
         """
         if len(self.hint.args) == 0:
+            # Unparameterized mappings accept any key/value hints.
             return True
         if len(value_hint.args) == 0:
+            # A parameterized mapping does not match an unparameterized candidate.
             return False
 
+        # Missing value hint defaults to Any.
         key_hint = self.hint.args[0]
         value_item_hint = self.hint.args[1] if len(self.hint.args) >= 2 else Any
         value_key_hint = value_hint.args[0]
@@ -592,10 +747,13 @@ class TypeChecker:
                 checked.
         """
         if len(self.hint.args) == 0:
+            # Unparameterized Callable accepts any callable hint.
             return True
         if len(value_hint.args) == 0:
+            # Parameterized Callable does not match unparameterized candidate.
             return False
 
+        # Callable args are stored as (params, return).
         params = self.hint.args[0]
         value_params = value_hint.args[0]
         expected_return = self.hint.args[1] if len(self.hint.args) > 1 else Any
@@ -604,6 +762,7 @@ class TypeChecker:
         if not type_check_type(value_return, expected_return):
             return False
         if params is Ellipsis or value_params is Ellipsis:
+            # Callable[..., R] only matches another ellipsis parameter list.
             return params is value_params
         return (
                 len(value_params) == len(params)
@@ -630,8 +789,10 @@ class TypeChecker:
         value_hint = None
         arg_count = len(self.hint.args)
         if arg_count >= 1:
+            # First mapping arg is the key hint.
             key_hint = self.hint.args[0]
         if arg_count >= 2:
+            # Second mapping arg is the value hint.
             value_hint = self.hint.args[1]
 
         if key_hint is not None:
@@ -647,10 +808,12 @@ class TypeChecker:
                     return is_type
                 raise UnsupportedTypeHint(f"Unsupported mapping key hint: {key_hint!r}")
             return all(
+                # Keys are always checked; values are only checked when a value hint exists.
                 type_check(item_key, key_hint) and (type_check(item_value, value_hint) if value_hint is not None else True)
                 for item_key, item_value in value.items()
             )
 
+        # No key hint means this checker has no mapping contract to apply.
         return False
 
     def _check_callable(self, value):
@@ -687,6 +850,7 @@ class TypeChecker:
         ):
             return False
         if params is Ellipsis or not isinstance(params, list):
+            # Ellipsis means arbitrary parameters; non-list params are already broad.
             return True
 
         expected_kwargs = None
@@ -716,6 +880,7 @@ class TypeChecker:
         for param in params:
             param_arg = _callable_variadic_arg_hint(param)
             if param_arg is not None:
+                # Expected callable can accept an arbitrary number of this arg.
                 expected_variadic = True
             else:
                 expected_min += 1
@@ -767,12 +932,14 @@ class TypeChecker:
         if var_keyword is not None:
             if var_keyword.annotation is inspect.Signature.empty:
                 return True
+            # **kwargs annotation applies to all TypedDict key value hints.
             return all(
                 type_check_type(_unwrap_required(annotations[key]), var_keyword.annotation)
                 for key in required_keys | optional_keys
             )
 
         if expected_kwargs is not None:
+            # Without **kwargs, named parameters must cover all required keys.
             return required_keys.issubset(accepted_keys)
         return True
 
@@ -801,14 +968,19 @@ class TypeChecker:
 
         # Sentinel hints need explicit runtime behavior.
         if self.hint.hint is Any:
+            # Any accepts every runtime value.
             return True
         if self.hint.hint in (object, type):
+            # object and type use normal isinstance semantics.
             return isinstance(value, self.hint.hint)
         if self.hint.hint in (None, NoneType):
+            # None and NoneType only accept the None singleton.
             return value is None
         if self.hint.hint in (NoReturn, Never):
+            # Impossible hints accept no runtime values.
             return False
         if self.hint.hint is LiteralString:
+            # LiteralString has no runtime distinction from str.
             return isinstance(value, str)
         if isinstance(self.hint.hint, str) or isinstance(self.hint.hint, ForwardRef):
             # There is not enough local context here to resolve names safely.
@@ -823,6 +995,7 @@ class TypeChecker:
                 return self._match_args(value, constraints, True, False, False, True)
             bound = getattr(self.hint.hint, "__bound__", None)
             if bound is not None:
+                # Bounded TypeVars defer to the bound hint.
                 return type_check(value, bound)
             return True
         if self.hint.is_new_type:
@@ -916,13 +1089,16 @@ class TypeChecker:
                     return True
 
         if self._literal_like:
+            # Literal checks compare the runtime value directly to payloads.
             if value in expanded:
                 return True
 
         if self._union_like:
+            # Union checks the runtime value against every alternative.
             if self._match_args(value, expanded, True, False, False):
                 return True
 
+        # Args existed but no structural branch could prove compatibility.
         return len(expanded) == 0
 
     def check_hint(self, value_hint: TypeHint | TypeInfo):
@@ -953,8 +1129,10 @@ class TypeChecker:
         if value_hint.hint is inspect.Signature.empty or self.hint.hint is inspect.Signature.empty:
             return True
         if value_hint.hint is Any or self.hint.hint is Any:
+            # Any on either side means the hint relationship is unconstrained.
             return True
         if value_hint.hint == self.hint.hint:
+            # Exact hint equality is always compatible.
             return True
         if isinstance(value_hint.hint, str) or isinstance(value_hint.hint, ForwardRef):
             raise UnsupportedTypeHint(f"Forward references are not supported at runtime: {value_hint.hint!r}")
@@ -964,18 +1142,25 @@ class TypeChecker:
         # NoReturn/Never describe an impossible value set. An impossible value
         # set is a subtype of everything.
         if self.hint.hint in (NoReturn, Never):
+            # The expected impossible set is compatible with all candidates here.
             return True
         if value_hint.hint in (NoReturn, Never):
+            # The candidate impossible set only equals another impossible set.
             return self.hint.hint in (NoReturn, Never)
         if value_hint.hint is object:
+            # object as candidate is broader than every concrete expected hint.
             return True
         if self.hint.hint is object:
+            # object as expected only exactly matches object in this direction.
             return value_hint.hint is object
         if value_hint.hint is LiteralString:
+            # LiteralString candidate can be treated like str unless expected is stricter.
             return self.hint.hint is LiteralString or self.check_hint(str)
         if self.hint.hint is LiteralString:
+            # Expected LiteralString accepts hints compatible with str.
             return type_check_type(str, value_hint.hint)
         if value_hint.hint in (None, NoneType):
+            # None-compatible candidate only matches None-compatible expected hint.
             return self.hint.hint in (None, NoneType)
 
         if self.hint.is_typevar:
@@ -985,6 +1170,7 @@ class TypeChecker:
                 return any(type_check_type(value_hint, constraint) for constraint in constraints)
             bound = getattr(self.hint.hint, "__bound__", None)
             if bound is not None:
+                # Bounded TypeVars defer to hint compatibility with the bound.
                 return type_check_type(value_hint, bound)
             return True
         if self.hint.is_new_type:
@@ -1035,22 +1221,27 @@ class TypeChecker:
         # Hint args are compared before origin is used as a final fallback.
         origin_matches = self._check_origin(value_hint)
         if self._origin_only:
+            # Origin-only hint checks still need origin compatibility.
             return origin_matches
 
         if self._map_like:
+            # Mapping args can match across aliases when origin is ignored.
             if self._check_hint_map(value_hint) and (self._ignore_origin or origin_matches):
                 return True
 
         if self._iterable_like or self._callable_like:
             if len(self.hint.args) == 0:
+                # No args means there is no structural detail to compare.
                 return origin_matches
 
         if self._callable_like:
+            # Callable compatibility is params plus return hint.
             if self._check_hint_callable(value_hint) and (self._ignore_origin or origin_matches):
                 return True
 
         if self._tuple_like:
             if self.hint.args == ((),):
+                # tuple[()] is the empty tuple hint.
                 return value_hint.args == ((),) and (self._ignore_origin or origin_matches)
 
         expanded = self._expand_args()
@@ -1063,6 +1254,7 @@ class TypeChecker:
                 return False
             if (self._tuple_like and len(expanded) == 2 and expanded[1] is Ellipsis) or not self._tuple_like:
                 if self._tuple_like:
+                    # Variadic tuple hints only match variadic tuple candidates.
                     return (
                             len(value_expanded) == 2
                             and value_expanded[1] is Ellipsis
@@ -1070,6 +1262,7 @@ class TypeChecker:
                             and (self._ignore_origin or origin_matches)
                     )
                 return (
+                        # Homogeneous iterable hints have exactly one item arg.
                         len(value_expanded) == 1
                         and type_check_type(value_expanded[0], expanded[0])
                         and (self._ignore_origin or origin_matches)
@@ -1077,6 +1270,7 @@ class TypeChecker:
 
         if self._tuple_like:
             if len(value_expanded) == len(expanded):
+                # Fixed tuple candidates compare position by position.
                 if (
                         self._match_args(value_expanded, expanded, False, True, True)
                         and (self._ignore_origin or origin_matches)
@@ -1165,10 +1359,12 @@ def _is_class(origin: Any, parent: Any) -> bool:
 AnyType = TypeChecker(Any, origin_only=True)
 ObjectType = TypeChecker(object, origin_only=True)
 TYPES: list[TypeChecker] = [
+    # Basic numeric scalar checkers.
     TypeChecker(int, origin_only=True),
     TypeChecker(bool, origin_only=True),
     TypeChecker(float, origin_only=True),
     TypeChecker(complex, origin_only=True),
+    # String/byte-like values are scalar for this checker, not iterable shapes.
     TypeChecker(str, origin_only=True),
     TypeChecker(bytes, origin_only=True),
     TypeChecker(bytearray, origin_only=True),
@@ -1176,9 +1372,11 @@ TYPES: list[TypeChecker] = [
     TypeChecker(tuple, tuple_like=True),
     TypeChecker(slice, origin_only=True),
     TypeChecker(NoneType),
+    # Abstract containers cover their builtin subclasses when possible.
     TypeChecker(Mapping, map_like=True),
     TypeChecker(Sequence, sequence_like=True),
     TypeChecker(Iterable, iterable_like=True),
+    # Typing forms below are mostly argument-driven.
     TypeChecker(UnionType | Union, union_like=True, ignore_origin=True),
     TypeChecker(Literal, literal_like=True, allow_non_type_args=True),
     TypeChecker(Callable, callable_like=True, allow_non_type_args=True),
@@ -1198,10 +1396,12 @@ for builtin_type in dict.fromkeys(
     }:
         can_build = True
         for type_checker in TYPES:
+            # Skip builtin classes already covered by a broader registered checker.
             if _is_subclass(builtin_type, type_checker.info.hint) or _is_class(builtin_type, type_checker.info.hint):
                 can_build = False
                 break
         if can_build:
+            # Remaining builtin classes get simple origin-only behavior.
             TYPES.append(TypeChecker(builtin_type, origin_only=True))
 
 Hint: TypeAlias = TypeHint | TypeInfo | TypeChecker
@@ -1227,16 +1427,19 @@ def get_type_checker(hint: TypeHint | TypeInfo | TypeChecker, default:TypeChecke
     if isinstance(hint, TypeChecker):
         return hint
     if not isinstance(hint, TypeInfo):
+        # Normalize once before scanning the registry.
         hint = TypeInfo.build(hint)
     if hint.hint is Any:
         return AnyType
     if hint.hint is object:
         return ObjectType
     for tc in TYPES:
+        # A checker decides whether it owns a hint through check_hint.
         if tc.check_hint(hint):
             return tc
     if default is None:
         raise UnsupportedTypeHint(f"Unsupported TypeHint: {hint.hint!r}")
+    # Callers may request permissive fallback behavior through default.
     return default
 
 def type_check(value, hint: Hint) -> bool:
@@ -1258,6 +1461,7 @@ def type_check(value, hint: Hint) -> bool:
             iterate or inspect as required.
     """
     if isinstance(hint, tuple):
+        # Tuple input is treated as a union of possible hints.
         for h in hint:
             if type_check(value, h):
                 return True
@@ -1269,6 +1473,7 @@ def type_check(value, hint: Hint) -> bool:
         this_hint = TypeChecker(hint, True)
     this_hint.hint = hint
     is_type = this_hint.check_value(value)
+    # Reset reusable registry checkers to their template hint.
     this_hint.hint = None
     return is_type
 
@@ -1292,6 +1497,7 @@ def type_check_type(value, hint: Hint) -> bool:
         TypeError: If a structural hint-arg check receives a non-iterable shape.
     """
     if isinstance(hint, tuple):
+        # Tuple input is treated as a union of possible hint expectations.
         for h in hint:
             if type_check_type(value, h):
                 return True
@@ -1299,8 +1505,10 @@ def type_check_type(value, hint: Hint) -> bool:
     try:
         this_hint = get_type_checker(hint, None)
     except UnsupportedTypeHint:
+        # Fallback checkers are temporary and inferred from the expected hint.
         this_hint = TypeChecker(hint, True)
     this_hint.hint = hint
     is_type = this_hint.check_hint(value)
+    # Reset reusable registry checkers to their template hint.
     this_hint.hint = None
     return is_type
